@@ -4,14 +4,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 private class FetchFuture<V> implements Future<V> {
-    private Future<V> fetchFuture;
-    private Callable<V> fetcher;
-    private ExecutorService executor;
+    Future<V> fetchFuture;
+    Callable<V> fetcher;
+    V result;
+    private EnergyAdaptiveCache cache;
     
-    FetchFuture(Callable<V> fetcher_, ExecutorService executor_) {
+    FetchFuture(Callable<V> fetcher_, EnergyAdaptiveCache cache_) {
         fetchFuture = null;
         fetcher = fetcher_;
-        executor = executor_;
+        result = null;
+        cache = cache_;
     }
     
     public boolean cancel(boolean mayInterruptIfRunning) {
@@ -21,26 +23,21 @@ private class FetchFuture<V> implements Future<V> {
     private synchronized void establishFuture() {
         if (fetchFuture == null) {
             // haven't submitted it yet; better do it now
-            fetchFuture = executor.submit(fetcher);
+            fetchFuture = cache.submit(fetcher);
         }
-    }
-    
-    private void evaluatePrefetchDecision() {
-        // TODO: estimate whether I "made a mistake" with this fetch
-        //       e.g. too early, too late
     }
     
     public V get() {
         establishFuture();
-        V result = fetchFuture.get();
-        evaulatePrefetchDecision();
+        result = fetchFuture.get();
+        cache.remove(this);
         return result;
     }
     
     public V get(long timeout, TimeUnit unit) {
         establishFuture();
-        V result = fetchFuture.get(timeout, unit);
-        evaulatePrefetchDecision();
+        result = fetchFuture.get(timeout, unit);
+        cache.remove(this);
         return result;
     }
     
