@@ -20,13 +20,15 @@ public class HTTPFetchTest extends InstrumentationTestCase {
     }
     
     public void testFetch() {
-        HTTPFetcher fetcher = new HTTPFetcher("http://www.cnn.com/");
+        // fetch www.eecs.umich.edu
+        // put the IP here so as to avoid weird DNS issues on the G1
+        HTTPFetcher fetcher = new HTTPFetcher("http://141.212.113.110/");
         Future<String> f = cache.prefetch(fetcher);
         try {
             String str = f.get();
             assertTrue("Future done", f.isDone());
             assertFalse("Future not cancelled", f.isCancelled());
-            assertTrue("HTML fetched", str.contains("Cable News Network"));
+            assertTrue("HTML fetched", str.contains("University of Michigan"));
         } catch (Exception e) {
             e.printStackTrace();
             fail("Unexpected exception:" + e.toString());
