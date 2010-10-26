@@ -77,7 +77,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
     
     public boolean isDone() {
         Future<V> f = getFutureRef();
-        return (f != null && f.isDone());
+        return cancelled || (f != null && f.isDone());
     }
     
     void startAsync() throws ExecutionException {
