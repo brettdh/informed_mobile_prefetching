@@ -1,0 +1,61 @@
+package edu.umich.eac.tests;
+
+import java.util.concurrent.Future;
+import java.util.concurrent.Callable;
+import android.test.InstrumentationTestCase;
+
+import edu.umich.eac.EnergyAdaptiveCache;
+
+public class SimpleNoNetworkTest extends InstrumentationTestCase {
+    private EnergyAdaptiveCache cache;
+    
+    protected void setUp() {
+        cache = new EnergyAdaptiveCache();
+    }
+    
+    public void testImmediateGet() {
+        testWithDelay(0);
+    }
+    
+    public void testDelayedGet() {
+        testWithDelay(5);
+    }
+    
+    private void testWithDelay(long delaySecs) {
+        Future<String> f = cache.prefetch(new FakeFetcher(delaySecs));
+        try {
+            if (delaySecs > 0) {
+                assertFalse("Future not done yet", f.isDone());
+            }
+            String str = f.get();
+            assertEquals("String matches", str, FakeFetcher.msg);
+            assertTrue("Future done", f.isDone());
+            assertFalse("Future not cancelled", f.isCancelled());
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Unexpected exception:" + e.toString());
+        }
+    }
+    
+    private class FakeFetcher implements Callable<String> {
+        static final String msg = "This is the string you asked for.";
+        
+        long delaySeconds;
+        
+        FakeFetcher(long delaySecs) {
+            delaySeconds = delaySecs;
+        }
+        
+        public String call() {
+            if (delaySeconds > 0) {
+                try {
+                    Thread.currentThread().sleep(delaySeconds * 1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    fail("Thread sleep interrupted; shouldn't happen");
+                }
+            }
+            return msg;
+        }
+    }
+}

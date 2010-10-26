@@ -16,12 +16,12 @@
     </application>
     
     <!--
-    This declares that this application uses the instrumentation test runner targeting
-    the package of edu.umich.eac.  To run the tests use the command:
-    "adb shell am instrument -w edu.umich.eac.tests/android.test.InstrumentationTestRunner"
+    To run the tests use the command:
+    "adb shell am instrument -w 
+               edu.umich.eac.tests/android.test.InstrumentationTestRunner"
     -->
     <instrumentation android:name="android.test.InstrumentationTestRunner"
-                     android:targetPackage="edu.umich.eac.test"
+                     android:targetPackage="edu.umich.eac.tests"
                      android:label="Tests for StubActivity"/>
     
 </manifest> 

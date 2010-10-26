@@ -7,7 +7,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-class FetchFuture<V> implements Future<V> {
+class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
     Future<V> realFuture;
     Callable<V> fetcher;
     boolean cancelled;
@@ -90,5 +90,10 @@ class FetchFuture<V> implements Future<V> {
             // if thrown by get(), fetch is still in progress,
             //  even though get() was somehow interrupted. ignore.
         }
+    }
+    
+    public int compareTo(FetchFuture<V> other) {
+        // arbitrary order
+        return (hashCode() - other.hashCode());
     }
 }
