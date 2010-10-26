@@ -11,14 +11,12 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
     Future<V> realFuture;
     Callable<V> fetcher;
     boolean cancelled;
-    V result;
     private EnergyAdaptiveCache cache;
     
     FetchFuture(Callable<V> fetcher_, EnergyAdaptiveCache cache_) {
         realFuture = null;
         fetcher = fetcher_;
         cancelled = false;
-        result = null;
         cache = cache_;
     }
     
@@ -55,7 +53,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
                           CancellationException {
 
         establishFuture();
-        result = realFuture.get();
+        V result = realFuture.get();
         cache.remove(this);
         return result;
     }
@@ -65,7 +63,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
                TimeoutException, CancellationException {
             
         establishFuture();
-        result = realFuture.get(timeout, unit);
+        V result = realFuture.get(timeout, unit);
         cache.remove(this);
         return result;
     }
@@ -80,16 +78,12 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
         return cancelled || (f != null && f.isDone());
     }
     
-    void startAsync() throws ExecutionException {
-        try {
-            get(0, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            // thrown by get(); expected
-            // nothing; I just wanted to get this fetch a-rollin'
-        } catch (InterruptedException e) {
-            // if thrown by get(), fetch is still in progress,
-            //  even though get() was somehow interrupted. ignore.
-        }
+    /** Asynchronously, get this prefetch going as a fetch.
+     *
+     *  This just involves submitting the Callable to the ExecutorService.
+     */
+    void startAsync() {
+        establishFuture();
     }
     
     public int compareTo(FetchFuture<V> other) {

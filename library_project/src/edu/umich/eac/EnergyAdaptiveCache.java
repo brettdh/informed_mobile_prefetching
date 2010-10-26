@@ -8,7 +8,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CancellationException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
@@ -104,10 +104,8 @@ public class EnergyAdaptiveCache {
                     prefetch.startAsync();
                 } catch (InterruptedException e) {
                     // if thrown by take(); ignore and try again.
-                    // if thrown by get(), fetch is still in progress. ignore.
-                } catch (ExecutionException e) {
-                    Log.e(TAG, "Prefetch action threw an exception");
-                    e.printStackTrace();
+                } catch (CancellationException e) {
+                    Log.e(TAG, "Prefetch cancelled before it was sent");
                 }
             }
         }
