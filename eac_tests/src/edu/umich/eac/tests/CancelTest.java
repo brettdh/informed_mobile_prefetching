@@ -1,13 +1,13 @@
 package edu.umich.eac.tests;
 
 import java.util.concurrent.Future;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import android.test.InstrumentationTestCase;
 
 import edu.umich.eac.EnergyAdaptiveCache;
+import edu.umich.eac.CacheFetcher;
 
 public class CancelTest extends InstrumentationTestCase {
     private EnergyAdaptiveCache cache;
@@ -52,8 +52,8 @@ public class CancelTest extends InstrumentationTestCase {
         }
     }
     
-    private class CancelFetcher implements Callable<String> {
-        public String call() throws InterruptedException {
+    private class CancelFetcher implements CacheFetcher<String> {
+        public String call(long labels) throws InterruptedException {
             // Never return; just wait to be cancelled.
             while (true) {
                 Thread.currentThread().sleep(3600 * 1000);

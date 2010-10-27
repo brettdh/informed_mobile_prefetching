@@ -1,10 +1,10 @@
 package edu.umich.eac.tests;
 
 import java.util.concurrent.Future;
-import java.util.concurrent.Callable;
 import android.test.InstrumentationTestCase;
 
 import edu.umich.eac.EnergyAdaptiveCache;
+import edu.umich.eac.CacheFetcher;
 
 public class SimpleNoNetworkTest extends InstrumentationTestCase {
     private EnergyAdaptiveCache cache;
@@ -37,7 +37,7 @@ public class SimpleNoNetworkTest extends InstrumentationTestCase {
         }
     }
     
-    private class FakeFetcher implements Callable<String> {
+    private class FakeFetcher implements CacheFetcher<String> {
         static final String msg = "This is the string you asked for.";
         
         long delaySeconds;
@@ -46,7 +46,7 @@ public class SimpleNoNetworkTest extends InstrumentationTestCase {
             delaySeconds = delaySecs;
         }
         
-        public String call() {
+        public String call(long labels) {
             if (delaySeconds > 0) {
                 try {
                     Thread.currentThread().sleep(delaySeconds * 1000);

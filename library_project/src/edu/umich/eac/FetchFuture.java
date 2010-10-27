@@ -7,41 +7,78 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
+import edu.umich.eac.CacheFetcher;
+import edu.umich.eac.IntNWLabels;
+
+class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     Future<V> realFuture;
-    Callable<V> fetcher;
+    CallableWrapperFetcher<V> fetcher;
     boolean cancelled;
     private EnergyAdaptiveCache cache;
     
-    FetchFuture(Callable<V> fetcher_, EnergyAdaptiveCache cache_) {
+    private class CallableWrapperFetcher<V> implements Callable<V> {
+        long labels;
+        CacheFetcher<V> labeledFetcher;
+        CallableWrapperFetcher(CacheFetcher<V> fetcher_) {
+            labeledFetcher = fetcher_;
+            labels = IntNWLabels.BACKGROUND;
+        }
+        
+        boolean isDemand() {
+            return ((labels & IntNWLabels.ONDEMAND) != 0);
+        }
+
+        public V call() throws Exception {
+            return labeledFetcher.call(labels);
+        }
+    }
+    
+    FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_) {
         realFuture = null;
-        fetcher = fetcher_;
+        fetcher = new CallableWrapperFetcher<V>(fetcher_);
         cancelled = false;
         cache = cache_;
     }
     
     public boolean cancel(boolean mayInterruptIfRunning) {
-        // XXX: needs a closer look and testing.
         if (cancelled) {
             return true;
         }
+        cache.remove(this);
         
         Future<V> f = getFutureRef();
-        if (f != null) {
-            cancelled = f.cancel(mayInterruptIfRunning);
-            return cancelled;
-        } else {
-            cache.remove(this);
+        if (f == null) {
             cancelled = true;
             return true;
+        } else {
+            cancelled = f.cancel(mayInterruptIfRunning);
+            return cancelled;
         }
     }
     
-    private synchronized void establishFuture() throws CancellationException {
+    private synchronized void establishFuture(boolean demand)
+        throws CancellationException {
         if (cancelled) throw new CancellationException();
+        if (demand) {
+            if (realFuture != null && !fetcher.isDemand() && 
+                !realFuture.isDone()) {
+                // there's a pending background prefetch.
+                // cancel it and start a demand fetch.
+                // XXX: this might be bad if the fetch is 
+                //      large and almost done.  Hence label promotion.
+                realFuture.cancel(true);
+                realFuture = null;
+            }
+            fetcher.labels &= ~IntNWLabels.BACKGROUND;
+            fetcher.labels |= IntNWLabels.ONDEMAND;
+        } else {
+            fetcher.labels &= ~IntNWLabels.ONDEMAND;
+            fetcher.labels |= IntNWLabels.BACKGROUND;
+        }
+        
         if (realFuture == null) {
             // haven't submitted it yet; better do it now
-            realFuture = cache.submit(this);
+            realFuture = cache.submit(fetcher);
         }
     }
     
@@ -52,7 +89,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
     public V get() throws InterruptedException, ExecutionException, 
                           CancellationException {
 
-        establishFuture();
+        establishFuture(true);
         V result = realFuture.get();
         cache.remove(this);
         return result;
@@ -62,7 +99,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
         throws InterruptedException, ExecutionException, 
                TimeoutException, CancellationException {
             
-        establishFuture();
+        establishFuture(true);
         V result = realFuture.get(timeout, unit);
         cache.remove(this);
         return result;
@@ -83,7 +120,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V> > {
      *  This just involves submitting the Callable to the ExecutorService.
      */
     void startAsync() {
-        establishFuture();
+        establishFuture(false);
     }
     
     public int compareTo(FetchFuture<V> other) {

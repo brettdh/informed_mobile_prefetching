@@ -16,6 +16,7 @@ import java.util.TreeSet;
 import android.util.Log;
 
 import edu.umich.eac.FetchFuture;
+import edu.umich.eac.CacheFetcher;
 
 public class EnergyAdaptiveCache {
     private String TAG = EnergyAdaptiveCache.class.getName();
@@ -40,7 +41,7 @@ public class EnergyAdaptiveCache {
      *  @return A Future that can be used later to actually carry out
      *          the hinted access, via get().
      */
-    public <V> Future<V> prefetch(Callable<V> fetcher) {
+    public <V> Future<V> prefetch(CacheFetcher<V> fetcher) {
         try {
             FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
             prefetchQueue.put(fetchFuture);
@@ -53,9 +54,27 @@ public class EnergyAdaptiveCache {
         }
     }
     
-    <V> Future<V> submit(FetchFuture<V> fetchFuture) {
+    /** Hint a future access and start prefetching immediately,
+     *  bypassing any deferral decision.
+     *
+     *  This is useful for testing.
+     */
+    public <V> Future<V> prefetchNow(CacheFetcher<V> fetcher) {
+        FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
+        prefetchCache.add(fetchFuture);
+        try {   
+            fetchFuture.startAsync();
+        } catch (CancellationException e) {
+            Log.e(TAG, "No-defer prefetch cancelled before it was sent");
+            fetchFuture = null;
+        }
+        return fetchFuture;
+    }
+    
+    <V> Future<V> submit(Callable<V> fetcher) {
         // TODO: record whatever necessary information
-        return executor.submit(fetchFuture.fetcher);
+        // TODO: make a method to do that, and call it from FetchFuture
+        return executor.submit(fetcher);
     }
     
     void remove(FetchFuture<?> fetchFuture) {
@@ -92,16 +111,26 @@ public class EnergyAdaptiveCache {
              *             to be woken up at that point
              */
             
-            // To start, we'll just implement the most aggressive strategy:
-            //   1) Wait for a prefetch request to be enqueued
-            //   2) When it arrives, get() it immediately (but don't wait)
-            
             while (true) {
                 try {
                     FetchFuture<?> prefetch = prefetchQueue.take();
                     prefetchCache.add(prefetch);
 
+                    // Here is where we implement the prefetch delay strategy.
+                    // To start, we implement the most aggressive strategy:
+                    //   When a prefetch is enqueued, start it immediately.
                     prefetch.startAsync();
+                    
+                    // For testing, we can also try the 
+                    //  most conservative strategy: never start prefetches.
+                    //  That is, do nothing here and remove the above 
+                    //  call to startAsync.
+                    
+                    // TODO: implement the real strategy
+                    //  I imagine this will take the form of a 
+                    //  callback with a timeout.
+                    //  The callback may be triggered by an IntNW
+                    //  "enhanced thunk."
                 } catch (InterruptedException e) {
                     // if thrown by take(); ignore and try again.
                 } catch (CancellationException e) {

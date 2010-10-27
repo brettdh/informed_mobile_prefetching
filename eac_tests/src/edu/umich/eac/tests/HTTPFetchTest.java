@@ -1,7 +1,6 @@
 package edu.umich.eac.tests;
 
 import java.util.concurrent.Future;
-import java.util.concurrent.Callable;
 import java.net.URL;
 import java.net.URLConnection;
 import java.io.InputStream;
@@ -11,6 +10,7 @@ import java.io.IOException;
 import android.test.InstrumentationTestCase;
 
 import edu.umich.eac.EnergyAdaptiveCache;
+import edu.umich.eac.CacheFetcher;
 
 public class HTTPFetchTest extends InstrumentationTestCase {
     private EnergyAdaptiveCache cache;
@@ -35,13 +35,13 @@ public class HTTPFetchTest extends InstrumentationTestCase {
         }
     }
     
-    private class HTTPFetcher implements Callable<String> {
+    private class HTTPFetcher implements CacheFetcher<String> {
         private String myUrl;
         public HTTPFetcher(String url_) {
             myUrl = url_;
         }
         
-        public String call() throws IOException {
+        public String call(long labels) throws IOException {
             URL url = new URL(myUrl);
             URLConnection conn = url.openConnection();
             InputStream in = conn.getInputStream();
