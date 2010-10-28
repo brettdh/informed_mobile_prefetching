@@ -39,6 +39,8 @@
         <pathelement path="${sdk.dir}/tools/lib/anttasks.jar" />
         <pathelement path="${sdk.dir}/tools/lib/sdklib.jar" />
         <pathelement path="${sdk.dir}/tools/lib/androidprefs.jar" />
+        <pathelement path="${sdk.dir}/tools/lib/apkbuilder.jar" />
+        <pathelement path="${sdk.dir}/tools/lib/jarutils.jar" />
     </path>
 
     <taskdef name="setup"
@@ -82,24 +84,24 @@
 
     <target name="run-tests" depends="-install-tested-project, install"
                 description="Runs tests from the package defined in test.package property">
-	<exec executable="adb" outputproperty="redirect_value">
-	  <arg value="shell"/>
-	  <arg value="getprop"/>
-	  <arg value="log.redirect-stdio"/>
-	</exec>
-	<exec executable="adb">
-	  <arg value="shell"/>
-	  <arg value="setprop"/>
-	  <arg value="log.redirect-stdio"/>
-	  <arg value="false"/>
-	</exec>
+        <exec executable="adb" outputproperty="redirect_value">
+          <arg value="shell"/>
+          <arg value="getprop"/>
+          <arg value="log.redirect-stdio"/>
+        </exec>
+        <exec executable="adb">
+          <arg value="shell"/>
+          <arg value="setprop"/>
+          <arg value="log.redirect-stdio"/>
+          <arg value="false"/>
+        </exec>
         <run-tests-helper />
-	<exec executable="adb">
-	  <arg value="shell"/>
-	  <arg value="setprop"/>
-	  <arg value="log.redirect-stdio"/>
-	  <arg value="${redirect_value}"/>
-	</exec>
+        <exec executable="adb">
+          <arg value="shell"/>
+          <arg value="setprop"/>
+          <arg value="log.redirect-stdio"/>
+          <arg value="${redirect_value}"/>
+        </exec>
     </target>
 
     <setup />
