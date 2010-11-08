@@ -2,9 +2,9 @@
 #define FUTURE_H_INCL
 
 enum TimeUnit {
+    NANOSECONDS=0,
     MICROSECONDS,
     MILLISECONDS,
-    NANOSECONDS,
     SECONDS
 };
 
@@ -17,8 +17,10 @@ public:
     bool isDone();
 private:
     friend class EnergyAdaptiveCache;
-    Future(CacheFetcher *fetcher);
-    jobject getGlobalFutureObject();
+    
+    JavaVM *vm;
+    jobject jfuture;
+    Future(JavaVM *jvm, jobject jfuture_);
 };
 
 #endif

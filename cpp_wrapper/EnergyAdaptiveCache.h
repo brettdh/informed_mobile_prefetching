@@ -2,15 +2,16 @@
 #define ENERGY_ADAPTIVE_CACHE_H_INCL
 
 #include <jni.h>
-#include "CacheFetcher.h"
+#include "JNICacheFetcher.h"
 
 class EnergyAdaptiveCache {
 public:
     EnergyAdaptiveCache(JNIEnv *env);
     
-    Future * prefetch(CacheFetcher *fetcher);
+    Future * prefetch(JNICacheFetcher *fetcher);
 private:
     JavaVM *vm;
+    jclass cacheClazz;
     jobject realCacheObj;
     jmethodID prefetchMethodID;
 };

@@ -14,7 +14,7 @@ EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv)
         throw std::runtime_error("Can't get the Java VM");
     }
     
-    clazz = jenv->FindClass("edu.umich.eac/EnergyAdaptiveCache");
+    cacheClazz = jenv->FindClass("edu.umich.eac/EnergyAdaptiveCache");
     prefetchMethodID = jenv->GetMethodID(clazz, 
                                          prefetchMethodName, 
                                          prefetchMethodSig);
@@ -38,26 +38,30 @@ EnergyAdaptiveCache::~EnergyAdaptiveCache()
     }
 }
 
-static JNIEnv *
-getJNIEnv()
-{
-    JNIEnv *jenv = NULL;
-    jint rc = vm->AttachCurrentThread(&jenv, NULL);
-    if (rc == 0) {
-        return jenv;
-    }
-    throw std::runtime_error("Couldn't get JNIEnv!");
-}
-
 Future *
-EnergyAdaptiveCache::prefetch(CacheFetcher *fetcher)
+EnergyAdaptiveCache::prefetch(JNICacheFetcher *fetcher)
 {
-    JNIEnv *jenv = getJNIEnv();
+    JNIEnv *jenv = getJNIEnv(vm);
     
-    Future *future = new Future(fetcher);
-    // TODO: create a Java class with a native method that wraps
-    //       the call of this fetcher's native method
-    // XXX: wondering if it might be easier to just modify the
-    //      native application's prefetch thread, since
-    //      I have to create a Java wrapper app for it anyway.
+    jclass clazz = jenv->FindClass("edu.umich.eac/JNICacheFetcher");
+    jmethodID ctor = jenv->GetMethodID(clazz, "<init>", "(JZ)V");
+    jobject fetcher_jobj = jenv->NewObject(clazz, ctor, (long)fetcher, true);
+    if (!fetcher_jobj) {
+        throw std::runtime_error("Can't create JNICacheFetcher "
+                                 "java object");
+    }
+    
+    // create a java Future object by submitting this java Fetcher object
+    //  to the java EnergyAdaptiveCache
+    jobject local = jenv->CallObjectMethod(cacheClazz, prefetchMethodID,
+                                           fetcher_jobj);
+    jobject future_jobj;
+    if (!local ||
+        !(future_jobj = jenv->NewGlobalRef(local))) {
+        throw std::runtime_error("Can't create Future java object");
+    }
+    
+    // Wrap the returned Future in my proxy class
+    Future *future = new Future(vm, future_jobj);
+    return future;
 }
