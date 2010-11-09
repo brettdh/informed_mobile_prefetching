@@ -11,4 +11,8 @@ package edu.umich.eac;
 class eacJNI {
   public final static native long JNICacheFetcher_call(long jarg1, JNICacheFetcher jarg1_, long jarg2);
   public final static native void delete_JNICacheFetcher(long jarg1);
+
+  static {
+    System.loadLibrary("eac_native");
+  }
 }

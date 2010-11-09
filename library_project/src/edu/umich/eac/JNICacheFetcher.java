@@ -36,6 +36,9 @@ public class JNICacheFetcher implements CacheFetcher<SWIGTYPE_p_void> {
   }
 
   public SWIGTYPE_p_void call(long labels) {
+    if (swigCPtr == 0) {
+        throw new RuntimeException("ERROR: JNICacheFetcher.call() would segfault");
+    }
     long cPtr = eacJNI.JNICacheFetcher_call(swigCPtr, this, labels);
     return (cPtr == 0) ? null : new SWIGTYPE_p_void(cPtr, false);
   }

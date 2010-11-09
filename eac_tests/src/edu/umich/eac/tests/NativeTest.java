@@ -21,7 +21,7 @@ public class NativeTest extends InstrumentationTestCase {
 
     public void doAssertions(boolean futureNotDoneYet, boolean stringMatch,
                              boolean futureDone, boolean cancelled) {
-	assertFalse("Future not done yet", futureNotDoneYet);
+        assertFalse("Future not done yet", futureNotDoneYet);
         assertTrue("String matches", stringMatch);
         assertTrue("Future done", futureDone);
         assertFalse("Future not cancelled", cancelled);
