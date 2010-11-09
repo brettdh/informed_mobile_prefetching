@@ -1,4 +1,5 @@
 #include "Future.h"
+#include "utility.h"
 
 long 
 Future::getPtr(JNIEnv *jenv, jobject swig_voidptr)
@@ -7,7 +8,7 @@ Future::getPtr(JNIEnv *jenv, jobject swig_voidptr)
     jmethodID mid = jenv->GetStaticMethodID(
         clazz, "getCPtr", "(Ledu/umich/eac/SWIGTYPE_p_void;)J"
     );
-    long result = jenv->CallStaticLongMethod(clazz, mid, swig_voidptr)
+    long result = jenv->CallStaticLongMethod(clazz, mid, swig_voidptr);
     return result;
 }
 
@@ -15,11 +16,11 @@ void*
 Future::get()
 {
     JNIEnv *jenv = getJNIEnv(vm);
-    jobject jresult = jenv->CallObjectMethod(clazz, get_mid, jfuture);
-    return getPtr(jenv, jresult);
+    jobject jresult = jenv->CallObjectMethod(futureClass, get_mid, jfuture);
+    return (void*)getPtr(jenv, jresult);
 }
 
-static const char *enumStrings[SECONDS+1] = {
+static const char *enumNames[SECONDS+1] = {
     "NANOSECONDS",
     "MICROSECONDS",
     "MILLISECONDS",
@@ -40,29 +41,30 @@ Future::get(long timeout, enum TimeUnit units)
 {
     JNIEnv *jenv = getJNIEnv(vm);
     jobject enumValue = getEnumValue(jenv, units);
-    jobject jresult = jenv->CallObjectMethod(clazz, getWithTimeout_mid, 
+    jobject jresult = jenv->CallObjectMethod(futureClass, getWithTimeout_mid, 
                                              jfuture, timeout, enumValue);
-    return getPtr(jenv, jresult);
+    return (void*)getPtr(jenv, jresult);
 }
 
 void 
 Future::cancel(bool mayInterrupt)
 {
     JNIEnv *jenv = getJNIEnv(vm);
-    jenv->CallVoidMethod(clazz, cancel_mid, jfuture, mayInterrupt);
+    jenv->CallVoidMethod(futureClass, cancel_mid, jfuture, mayInterrupt);
 }
 
 bool 
 Future::isCancelled()
 {
     JNIEnv *jenv = getJNIEnv(vm);
-    jenv->CallBooleanMethod(clazz, isCancelled_mid, jfuture);
+    return jenv->CallBooleanMethod(futureClass, isCancelled_mid, jfuture);
 }
 
-bool Future::isDone()
+bool 
+Future::isDone()
 {
     JNIEnv *jenv = getJNIEnv(vm);
-    jenv->CallBooleanMethod(clazz, isDone_mid, jfuture);
+    return jenv->CallBooleanMethod(futureClass, isDone_mid, jfuture);
 }
 
 Future::Future(JavaVM *jvm, jobject jfuture_)
@@ -71,22 +73,22 @@ Future::Future(JavaVM *jvm, jobject jfuture_)
     jfuture = jfuture_; // global ref; release in destructor
     
     JNIEnv *jenv = getJNIEnv(jvm);
-    clazz = jenv->FindClass("java.util.concurrent/Future");
-    get_mid = jenv->GetMethodID(clazz, "get", "()Ljava/lang/Object;");
+    futureClass = jenv->FindClass("java.util.concurrent/Future");
+    get_mid = jenv->GetMethodID(futureClass, "get", "()Ljava/lang/Object;");
     getWithTimeout_mid = jenv->GetMethodID(
-        clazz, "get", "(JLjava/util/concurrent/TimeUnit)Ljava/lang/Object;"
+        futureClass, "get", 
+	"(JLjava/util/concurrent/TimeUnit)Ljava/lang/Object;"
     );
-    cancel_mid = jenv->GetMethodID(clazz, "cancel", "(Z)Z");
-    isCancelled_mid = jenv->GetMethodID(clazz, "isCancelled", "()Z");
-    isDone_mid = jenv->GetMethodID(clazz, "isDone", "()Z");
-    
-    
+    cancel_mid = jenv->GetMethodID(futureClass, "cancel", "(Z)Z");
+    isCancelled_mid = jenv->GetMethodID(futureClass, "isCancelled", "()Z");
+    isDone_mid = jenv->GetMethodID(futureClass, "isDone", "()Z");
 }
 
-~Future()
+Future::~Future()
 {
     if (!isCancelled()) {
         cancel(true);
     }
+    JNIEnv *jenv = getJNIEnv(vm);
     jenv->DeleteGlobalRef(jfuture);
 }

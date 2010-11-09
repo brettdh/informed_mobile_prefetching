@@ -1,6 +1,10 @@
+#include <stdexcept>
+#include <stdlib.h>
 #include <jni.h>
+#include "EnergyAdaptiveCache.h"
 #include "Future.h"
-#include "CacheFetcher.h"
+#include "JNICacheFetcher.h"
+#include "utility.h"
 
 static const char *prefetchMethodName = "prefetch";
 static const char *prefetchMethodSig = 
@@ -15,12 +19,12 @@ EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv)
     }
     
     cacheClazz = jenv->FindClass("edu.umich.eac/EnergyAdaptiveCache");
-    prefetchMethodID = jenv->GetMethodID(clazz, 
+    prefetchMethodID = jenv->GetMethodID(cacheClazz, 
                                          prefetchMethodName, 
                                          prefetchMethodSig);
     
-    jmethodID ctor = jenv->GetMethodID(clazz, "<init>", "()V");
-    jobject local = jenv->NewObject(clazz, ctor);
+    jmethodID ctor = jenv->GetMethodID(cacheClazz, "<init>", "()V");
+    jobject local = jenv->NewObject(cacheClazz, ctor);
     if (!local || 
         !(realCacheObj = jenv->NewGlobalRef(local))) {
         throw std::runtime_error("Can't create EnergyAdaptiveCache "
