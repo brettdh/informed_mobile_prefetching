@@ -1,5 +1,5 @@
 #include "Future.h"
-#include "utility.h"
+#include "eac_utility.h"
 #include <stdexcept>
 
 long 
@@ -15,11 +15,11 @@ Future::getPtr(JNIEnv *jenv, jobject swig_voidptr)
     if (!mid || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find getCPtr method");
     }
-    long result = jenv->CallStaticLongMethod(clazz, mid, swig_voidptr);
+    long result = jenv->CallStaticIntMethod(clazz, mid, swig_voidptr);
     if (JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Future.getPtr() threw an exception");
     }
-    eac_dprintf("getting (void*)long from future returns %x\n", result);
+    eac_dprintf("getting (void*)long from future returns %lx\n", result);
     return result;
 }
 
@@ -62,7 +62,7 @@ getEnumValue(JNIEnv *jenv, enum TimeUnit units)
 }
 
 void* 
-Future::get(long timeout, enum TimeUnit units)
+Future::get(long long timeout, enum TimeUnit units)
 {
     JNIEnv *jenv = getJNIEnv(vm);
     jobject enumValue = getEnumValue(jenv, units);
@@ -74,11 +74,11 @@ Future::get(long timeout, enum TimeUnit units)
     return (void*)getPtr(jenv, jresult);
 }
 
-void 
+bool
 Future::cancel(bool mayInterrupt)
 {
     JNIEnv *jenv = getJNIEnv(vm);
-    jenv->CallVoidMethod(jfuture, cancel_mid, mayInterrupt);
+    jenv->CallBooleanMethod(jfuture, cancel_mid, mayInterrupt);
     if (JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Future.cancel() threw an exception");
     }

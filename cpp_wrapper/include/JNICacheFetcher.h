@@ -3,8 +3,11 @@
 
 class JNICacheFetcher {
 public:
-    virtual void* call(long labels) = 0;
+    virtual void* call(int labels) = 0;
     virtual ~JNICacheFetcher() {}
 };
+
+#include <boost/shared_ptr.hpp>
+typedef boost::shared_ptr<JNICacheFetcher> JNICacheFetcherPtr;
 
 #endif

@@ -11,7 +11,7 @@ LOCAL_SRC_FILES := \
 	src/EnergyAdaptiveCache.cpp \
 	src/JNICacheFetcher_wrap.cpp \
 	src/Future.cpp \
-	src/utility.cpp
+	src/eac_utility.cpp
 LOCAL_PRELINK_MODULE := false
 LOCAL_SHARED_LIBRARIES := liblog
 include $(BUILD_SHARED_LIBRARY)

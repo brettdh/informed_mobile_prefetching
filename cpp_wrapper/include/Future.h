@@ -2,6 +2,7 @@
 #define FUTURE_H_INCL
 
 #include <jni.h>
+#include <stdexcept>
 
 enum TimeUnit {
     NANOSECONDS=0,
@@ -9,16 +10,18 @@ enum TimeUnit {
     MILLISECONDS,
     SECONDS
 };
-
+    
 class Future {
 public:
     void* get();
-    void* get(long timeout, enum TimeUnit units);
-    void cancel(bool mayInterrupt);
+    void* get(long long timeout, enum TimeUnit units);
+    bool cancel(bool mayInterrupt);
     bool isCancelled();
     bool isDone();
 
     ~Future();
+    
+    class TimeoutException : public std::runtime_error {};
 private:
     friend class EnergyAdaptiveCache;
     

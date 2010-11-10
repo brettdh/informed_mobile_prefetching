@@ -1,6 +1,6 @@
 #include <jni.h>
 #include <stdexcept>
-#include "utility.h"
+#include "eac_utility.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <pthread.h>

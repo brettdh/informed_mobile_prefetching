@@ -4,19 +4,24 @@
 #include <jni.h>
 
 class Future;
-class JNICacheFetcher;
+
+#include "JNICacheFetcher.h"
 
 class EnergyAdaptiveCache {
 public:
     EnergyAdaptiveCache(JNIEnv *env);
     ~EnergyAdaptiveCache();
     
-    Future * prefetch(JNICacheFetcher *fetcher);
+    Future * prefetch(JNICacheFetcherPtr fetcher);
+    Future * prefetchNow(JNICacheFetcherPtr fetcher);
 private:
+    Future * prefetch(JNICacheFetcherPtr fetcher, bool now);
+    
     JavaVM *vm;
     jclass cacheClazz;
     jobject realCacheObj;
-    jmethodID prefetchMethodID;
+    jmethodID prefetchMID;
+    jmethodID prefetchNowMID;
 };
 
 #endif

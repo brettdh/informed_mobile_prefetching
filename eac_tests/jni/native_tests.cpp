@@ -38,7 +38,7 @@ public:
         delaySeconds = delaySecs;
     }
     
-    virtual void *call(long labels) {
+    virtual void *call(int labels) {
         if (delaySeconds > 0) {
             struct timespec timeout;
             timeout.tv_sec = delaySeconds;
@@ -61,7 +61,8 @@ Java_edu_umich_eac_tests_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj,
     EnergyAdaptiveCache cache(jenv);
 
     bool futureNotDoneYet;
-    Future *f = cache.prefetch(new FakeFetcher(delaySecs));
+    JNICacheFetcherPtr ptr(new FakeFetcher(delaySecs));
+    Future *f = cache.prefetch(ptr);
     if (delaySecs > 0) {
         futureNotDoneYet = f->isDone();
     } else {
@@ -77,3 +78,5 @@ Java_edu_umich_eac_tests_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj,
 //        fail("Unexpected exception:" + e.toString());
 //    }
 }
+
+
