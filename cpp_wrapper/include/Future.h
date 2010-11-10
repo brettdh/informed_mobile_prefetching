@@ -3,6 +3,7 @@
 
 #include <jni.h>
 #include <stdexcept>
+#include <string>
 
 enum TimeUnit {
     NANOSECONDS=0,
@@ -21,7 +22,14 @@ public:
 
     ~Future();
     
-    class TimeoutException : public std::runtime_error {};
+    class TimeoutException : public std::runtime_error {
+    public:
+        TimeoutException(const std::string& s) : std::runtime_error(s) {}
+    };
+    class CancellationException : public std::runtime_error {
+    public:
+        CancellationException(const std::string& s) : std::runtime_error(s) {}
+    };
 private:
     friend class EnergyAdaptiveCache;
     

@@ -16,17 +16,7 @@ CDECL void eac_dprintf(const char *format, ...)
 CDECL void eac_dprintf_plain(const char *format, ...)
   __attribute__((format(printf, 1, 2)));
 
-static bool
-javaExceptionOccurred(JNIEnv *jenv, const char *file, int line)
-{
-    if (jenv->ExceptionCheck()) {
-        eac_dprintf("Java exception at %s:%d\n", file, line);
-        jenv->ExceptionDescribe();
-        return true;
-    } else {
-        return false;
-    }
-}
+bool javaExceptionOccurred(JNIEnv *jenv, const char *file, int line);
 
 #define JAVA_EXCEPTION_OCCURRED(jenv) javaExceptionOccurred(jenv, __FILE__, __LINE__)
 

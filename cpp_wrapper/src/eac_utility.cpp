@@ -68,3 +68,15 @@ void eac_dprintf_plain(const char *fmt, ...)
     eac_vdprintf(true, fmt, ap);
     va_end(ap);
 }
+
+bool
+javaExceptionOccurred(JNIEnv *jenv, const char *file, int line)
+{
+    if (jenv->ExceptionCheck()) {
+        eac_dprintf("Java exception at %s:%d\n", file, line);
+        jenv->ExceptionDescribe();
+        return true;
+    } else {
+        return false;
+    }
+}

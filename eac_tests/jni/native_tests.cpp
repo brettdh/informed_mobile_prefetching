@@ -6,6 +6,7 @@
 #include <EnergyAdaptiveCache.h>
 #include <JNICacheFetcher.h>
 #include <Future.h>
+#include "utility.h"
 
 void doAssertions(JNIEnv *jenv, jobject jobj, bool futureNotDoneYet,
                   const char *refStr, const char *str,
@@ -40,10 +41,7 @@ public:
     
     virtual void *call(int labels) {
         if (delaySeconds > 0) {
-            struct timespec timeout;
-            timeout.tv_sec = delaySeconds;
-            timeout.tv_nsec = 0;
-            nanosleep(&timeout, NULL);
+            thread_sleep(delaySeconds * 1000);
         }
         return (void*)msg;
     }
@@ -71,12 +69,10 @@ Java_edu_umich_eac_tests_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj,
     const char *str = (const char *)f->get();
     bool futureDone = f->isDone();
     bool cancelled = f->isCancelled();
+
+    // catch AssertionException not necessary here; doesn't use jniunit::asserts
     doAssertions(jenv, jobj, futureNotDoneYet, FakeFetcher::msg, str, 
                  futureDone, cancelled);
-//} catch (Exception e) {
-//        e.printStackTrace();
-//        fail("Unexpected exception:" + e.toString());
-//    }
 }
 
 

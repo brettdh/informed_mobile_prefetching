@@ -37,7 +37,8 @@ public class CancelTest extends InstrumentationTestCase {
     }
     
     public void testCancel() {
-        future.cancel(true);
+        boolean ret = future.cancel(true);
+        assertTrue("cancel succeeds", ret);
         assertTrue("Future is cancelled", future.isCancelled());
         assertTrue("Future is not done after cancel", future.isDone());
         try {

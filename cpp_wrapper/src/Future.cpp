@@ -1,6 +1,8 @@
 #include "Future.h"
 #include "eac_utility.h"
 #include <stdexcept>
+#include <sstream>
+using std::ostringstream;
 
 long 
 Future::getPtr(JNIEnv *jenv, jobject swig_voidptr)
@@ -23,14 +25,85 @@ Future::getPtr(JNIEnv *jenv, jobject swig_voidptr)
     return result;
 }
 
+static void throwNativeException(JNIEnv *jenv, jthrowable err)
+{
+    jenv->ExceptionDescribe();
+    jenv->ExceptionClear();
+
+    jclass throwable = jenv->GetObjectClass(err);
+    jclass cancel_exception 
+        = jenv->FindClass("java/util/concurrent/CancellationException");
+    jclass timeout_exception 
+        = jenv->FindClass("java/util/concurrent/TimeoutException");
+    jmethodID get_message
+        = jenv->GetMethodID(throwable, "getMessage", "()Ljava/lang/String;");
+        
+    jmethodID to_string
+        = jenv->GetMethodID(throwable, "toString", "()Ljava/lang/String;");
+    
+    if (!throwable || !cancel_exception || 
+        !timeout_exception || !get_message ||
+        !to_string || JAVA_EXCEPTION_OCCURRED(jenv)) {
+        eac_dprintf("Failed to init exception-related class handles\n");
+        abort();
+    }
+    
+    ostringstream oss;
+    oss << "Exception class: ";
+    jstring clsName = static_cast<jstring>(jenv->CallObjectMethod(err, to_string));
+    if (clsName) {
+        const char *chars = jenv->GetStringUTFChars(clsName, NULL);
+        if (chars) {
+            oss << chars;
+            jenv->ReleaseStringUTFChars(clsName, chars);
+        } else {
+            oss << "(unknown; failed to get string chars)";
+        }
+    } else {
+        oss << "(unknown; toString failed)";
+    }
+        
+    oss << " Message: ";
+    jstring jstr = (jstring)jenv->CallObjectMethod(err, get_message);
+    if (jstr) {
+        const char *chars = jenv->GetStringUTFChars(jstr, NULL);
+        if (chars) {
+            oss << chars;
+            jenv->ReleaseStringUTFChars(jstr, chars);
+        } else {
+            oss << "(unknown; failed to get string chars)";
+        }
+    } else {
+        oss << "(unknown; getMessage failed)";
+    }
+    
+    if (jenv->IsInstanceOf(err, cancel_exception)) {
+        oss << " Future::CancellationException";
+        throw Future::CancellationException(oss.str());
+    } else if (jenv->IsInstanceOf(err, timeout_exception)) {
+        oss << " Future::TimeoutException";
+        throw Future::TimeoutException(oss.str());
+    } else {
+        jenv->Throw(err);
+        oss << " (some other java.util.concurrent.Future exception)";
+        throw std::runtime_error(oss.str());
+    }
+}
+
+static void checkExceptions(JNIEnv *jenv)
+{
+    jthrowable err = jenv->ExceptionOccurred();
+    if (err) {
+        throwNativeException(jenv, err);;
+    }
+}
+
 void* 
 Future::get()
 {
     JNIEnv *jenv = getJNIEnv(vm);
     jobject jresult = jenv->CallObjectMethod(jfuture, get_mid);
-    if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Future.get() threw an exception");
-    }
+    checkExceptions(jenv);
     return (void*)getPtr(jenv, jresult);
 }
 
@@ -41,7 +114,7 @@ static const char *enumNames[SECONDS+1] = {
     "SECONDS"
 };
 
-static jobject
+jobject
 getEnumValue(JNIEnv *jenv, enum TimeUnit units)
 {
     jclass clazz = jenv->FindClass("java/util/concurrent/TimeUnit");
@@ -68,9 +141,7 @@ Future::get(long long timeout, enum TimeUnit units)
     jobject enumValue = getEnumValue(jenv, units);
     jobject jresult = jenv->CallObjectMethod(jfuture, getWithTimeout_mid, 
                                              timeout, enumValue);
-    if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Future.get(timeout) threw an exception");
-    }
+    checkExceptions(jenv);
     return (void*)getPtr(jenv, jresult);
 }
 
@@ -78,10 +149,9 @@ bool
 Future::cancel(bool mayInterrupt)
 {
     JNIEnv *jenv = getJNIEnv(vm);
-    jenv->CallBooleanMethod(jfuture, cancel_mid, mayInterrupt);
-    if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Future.cancel() threw an exception");
-    }
+    bool ret = jenv->CallBooleanMethod(jfuture, cancel_mid, mayInterrupt);
+    checkExceptions(jenv);
+    return ret;
 }
 
 bool 
@@ -89,9 +159,7 @@ Future::isCancelled()
 {
     JNIEnv *jenv = getJNIEnv(vm);
     bool res = jenv->CallBooleanMethod(jfuture, isCancelled_mid);
-    if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Future.isCancelled() threw an exception");
-    }
+    checkExceptions(jenv);
     return res;
 }
 
@@ -100,9 +168,7 @@ Future::isDone()
 {
     JNIEnv *jenv = getJNIEnv(vm);
     bool res = jenv->CallBooleanMethod(jfuture, isDone_mid);
-    if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Future.isDone() threw an exception");
-    }
+    checkExceptions(jenv);
     return res;
 }
 
@@ -112,7 +178,7 @@ Future::Future(JavaVM *jvm, jobject jfuture_)
     jfuture = jfuture_; // global ref; release in destructor
     
     JNIEnv *jenv = getJNIEnv(jvm);
-    futureClass = jenv->FindClass("java/util/concurrent/Future");
+    jclass futureClass = jenv->FindClass("java/util/concurrent/Future");
     if (!futureClass || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find Future class");
     }
