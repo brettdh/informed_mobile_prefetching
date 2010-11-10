@@ -47,7 +47,7 @@ EnergyAdaptiveCache::~EnergyAdaptiveCache()
     jint rc = vm->AttachCurrentThread(&jenv, NULL);
     if (rc == 0) {
         jenv->DeleteGlobalRef(realCacheObj);
-        vm->DetachCurrentThread();
+        //vm->DetachCurrentThread();
     }
 }
 
