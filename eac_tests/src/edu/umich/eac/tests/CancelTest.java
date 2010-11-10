@@ -53,7 +53,7 @@ public class CancelTest extends InstrumentationTestCase {
     }
     
     private class CancelFetcher implements CacheFetcher<String> {
-        public String call(long labels) throws InterruptedException {
+        public String call(int labels) throws InterruptedException {
             // Never return; just wait to be cancelled.
             while (true) {
                 Thread.currentThread().sleep(3600 * 1000);

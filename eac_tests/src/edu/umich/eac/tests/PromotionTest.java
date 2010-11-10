@@ -47,7 +47,7 @@ public class PromotionTest extends InstrumentationTestCase {
     }
     
     private class PromotionFetcher implements CacheFetcher<String> {
-        public String call(long labels) throws InterruptedException {
+        public String call(int labels) throws InterruptedException {
             if ((labels & IntNWLabels.BACKGROUND) != 0) {
                 // simulate a background fetch taking longer (exaggerated)
                 Thread.currentThread().sleep(3000);

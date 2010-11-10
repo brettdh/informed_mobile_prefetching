@@ -46,7 +46,7 @@ public class SimpleNoNetworkTest extends InstrumentationTestCase {
             delaySeconds = delaySecs;
         }
         
-        public String call(long labels) {
+        public String call(int labels) {
             if (delaySeconds > 0) {
                 try {
                     Thread.currentThread().sleep(delaySeconds * 1000);

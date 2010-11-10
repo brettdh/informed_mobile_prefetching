@@ -197,8 +197,8 @@ static void SWIGUNUSED SWIG_JavaThrowException(JNIEnv *jenv, SWIG_JavaExceptionC
 extern "C" {
 #endif
 
-SWIGEXPORT jlong JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(JNIEnv *jenv, jclass jcls, jlong jarg1, jobject jarg1_, jlong jarg2) {
-  jlong jresult = 0 ;
+SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_, jint jarg2) {
+  jint jresult = 0 ;
   JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;
   long arg2 ;
   void *result = 0 ;
@@ -214,7 +214,7 @@ SWIGEXPORT jlong JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(JNIEnv 
 }
 
 
-SWIGEXPORT void JNICALL Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(JNIEnv *jenv, jclass jcls, jlong jarg1) {
+SWIGEXPORT void JNICALL Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(JNIEnv *jenv, jclass jcls, jint jarg1) {
   JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;
   
   (void)jenv;

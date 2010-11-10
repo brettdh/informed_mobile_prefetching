@@ -56,7 +56,7 @@ extern "C"
 #endif
 JNIEXPORT void JNICALL 
 Java_edu_umich_eac_tests_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj, 
-                                                  jlong delaySecs)
+                                                  jint delaySecs)
 {
     EnergyAdaptiveCache cache(jenv);
 

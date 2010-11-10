@@ -17,7 +17,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     private EnergyAdaptiveCache cache;
     
     private class CallableWrapperFetcher<V> implements Callable<V> {
-        long labels;
+        int labels;
         CacheFetcher<V> labeledFetcher;
         CallableWrapperFetcher(CacheFetcher<V> fetcher_) {
             labeledFetcher = fetcher_;

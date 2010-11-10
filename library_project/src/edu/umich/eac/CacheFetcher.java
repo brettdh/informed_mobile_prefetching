@@ -5,5 +5,5 @@ public interface CacheFetcher<V> {
      *    that will change depending on e.g. whether we're 
      *    doing a prefetch or a demand fetch.
      */
-    public V call(long labels) throws Exception;
+    public V call(int labels) throws Exception;
 }

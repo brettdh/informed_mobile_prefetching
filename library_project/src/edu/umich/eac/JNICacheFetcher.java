@@ -9,17 +9,22 @@
 package edu.umich.eac;
 
 import edu.umich.eac.CacheFetcher;
+import android.util.Log;
 
 public class JNICacheFetcher implements CacheFetcher<SWIGTYPE_p_void> {
-  private long swigCPtr;
+  private int swigCPtr;
   protected boolean swigCMemOwn;
 
-  protected JNICacheFetcher(long cPtr, boolean cMemoryOwn) {
+  private final static String TAG = JNICacheFetcher.class.getName();
+
+  protected JNICacheFetcher(int cPtr, boolean cMemoryOwn) {
+      Log.d(TAG, "Created JNICacheFetcher; cPtr = "
+            + Integer.toHexString(cPtr));
     swigCMemOwn = cMemoryOwn;
     swigCPtr = cPtr;
   }
 
-  protected static long getCPtr(JNICacheFetcher obj) {
+  protected static int getCPtr(JNICacheFetcher obj) {
     return (obj == null) ? 0 : obj.swigCPtr;
   }
 
@@ -35,11 +40,11 @@ public class JNICacheFetcher implements CacheFetcher<SWIGTYPE_p_void> {
     swigCPtr = 0;
   }
 
-  public SWIGTYPE_p_void call(long labels) {
+  public SWIGTYPE_p_void call(int labels) {
     if (swigCPtr == 0) {
         throw new RuntimeException("ERROR: JNICacheFetcher.call() would segfault");
     }
-    long cPtr = eacJNI.JNICacheFetcher_call(swigCPtr, this, labels);
+    int cPtr = eacJNI.JNICacheFetcher_call(swigCPtr, this, labels);
     return (cPtr == 0) ? null : new SWIGTYPE_p_void(cPtr, false);
   }
 

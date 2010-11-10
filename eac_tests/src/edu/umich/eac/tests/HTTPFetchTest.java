@@ -41,7 +41,7 @@ public class HTTPFetchTest extends InstrumentationTestCase {
             myUrl = url_;
         }
         
-        public String call(long labels) throws IOException {
+        public String call(int labels) throws IOException {
             URL url = new URL(myUrl);
             URLConnection conn = url.openConnection();
             InputStream in = conn.getInputStream();

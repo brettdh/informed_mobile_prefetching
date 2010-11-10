@@ -66,11 +66,11 @@ EnergyAdaptiveCache::prefetch(JNICacheFetcher *fetcher)
     if (!clazz || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find JNICacheFetcher class");
     }
-    jmethodID ctor = jenv->GetMethodID(clazz, "<init>", "(JZ)V");
+    jmethodID ctor = jenv->GetMethodID(clazz, "<init>", "(IZ)V");
     if (!ctor || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find JNICacheFetcher ctor");
     }
-    jobject fetcher_jobj = jenv->NewObject(clazz, ctor, (long)fetcher, true);
+    jobject fetcher_jobj = jenv->NewObject(clazz, ctor, (int)fetcher, true);
     if (!fetcher_jobj || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't create JNICacheFetcher "
                                  "java object");

@@ -9,9 +9,9 @@
 package edu.umich.eac;
 
 public class SWIGTYPE_p_void {
-  private long swigCPtr;
+  private int swigCPtr;
 
-  protected SWIGTYPE_p_void(long cPtr, boolean futureUse) {
+  protected SWIGTYPE_p_void(int cPtr, boolean futureUse) {
     swigCPtr = cPtr;
   }
 
@@ -19,7 +19,7 @@ public class SWIGTYPE_p_void {
     swigCPtr = 0;
   }
 
-  protected static long getCPtr(SWIGTYPE_p_void obj) {
+  protected static int getCPtr(SWIGTYPE_p_void obj) {
     return (obj == null) ? 0 : obj.swigCPtr;
   }
 }

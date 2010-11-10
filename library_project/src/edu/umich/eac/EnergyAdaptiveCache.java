@@ -88,6 +88,7 @@ public class EnergyAdaptiveCache {
     }
     
     public EnergyAdaptiveCache() {
+        Log.d(TAG, "Created a new EnergyAdaptiveCache");
         executor = Executors.newCachedThreadPool();
         prefetchQueue = new LinkedBlockingQueue<FetchFuture<?> >();
         prefetchCache = Collections.synchronizedSet(

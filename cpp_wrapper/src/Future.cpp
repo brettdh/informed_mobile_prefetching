@@ -10,7 +10,7 @@ Future::getPtr(JNIEnv *jenv, jobject swig_voidptr)
         throw std::runtime_error("Can't find SWIGTYPE_p_void class");
     }
     jmethodID mid = jenv->GetStaticMethodID(
-        clazz, "getCPtr", "(Ledu/umich/eac/SWIGTYPE_p_void;)J"
+        clazz, "getCPtr", "(Ledu/umich/eac/SWIGTYPE_p_void;)I"
     );
     if (!mid || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find getCPtr method");
