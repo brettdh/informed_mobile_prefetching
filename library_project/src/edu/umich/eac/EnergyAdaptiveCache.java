@@ -21,12 +21,6 @@ import edu.umich.eac.FetchFuture;
 import edu.umich.eac.CacheFetcher;
 
 public class EnergyAdaptiveCache {
-    public static void forceLoad() {
-        Log.d(TAG, "Forced classloading");
-        JNICacheFetcher.forceLoad();
-        SWIGTYPE_p_void.forceLoad();
-    }
-    
     private static String TAG = EnergyAdaptiveCache.class.getName();
     
     private ExecutorService executor;

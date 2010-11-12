@@ -25,8 +25,5 @@ public class SWIGTYPE_p_void {
   }
   
   private static String TAG = SWIGTYPE_p_void.class.getName();
-  static void forceLoad() {
-      Log.d(TAG, "Forced classloading");
-  }
 }
 
