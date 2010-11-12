@@ -119,8 +119,8 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
      *
      *  This just involves submitting the Callable to the ExecutorService.
      */
-    void startAsync() {
-        establishFuture(false);
+    void startAsync(boolean demand) {
+        establishFuture(demand);
     }
     
     public int compareTo(FetchFuture<V> other) {

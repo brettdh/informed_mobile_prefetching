@@ -7,6 +7,7 @@
  * ----------------------------------------------------------------------------- */
 
 package edu.umich.eac;
+import android.util.Log;
 
 public class SWIGTYPE_p_void {
   private int swigCPtr;
@@ -21,6 +22,11 @@ public class SWIGTYPE_p_void {
 
   protected static int getCPtr(SWIGTYPE_p_void obj) {
     return (obj == null) ? 0 : obj.swigCPtr;
+  }
+  
+  private static String TAG = SWIGTYPE_p_void.class.getName();
+  static void forceLoad() {
+      Log.d(TAG, "Forced classloading");
   }
 }
 

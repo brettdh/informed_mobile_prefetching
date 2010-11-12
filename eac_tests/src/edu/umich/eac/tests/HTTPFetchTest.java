@@ -35,13 +35,37 @@ public class HTTPFetchTest extends InstrumentationTestCase {
         }
     }
     
+    public void testFetchAndPrefetch() {
+        HTTPFetcher fetcher = new HTTPFetcher("http://141.212.113.110/");
+        Future<String> f = cache.fetch(fetcher);
+        try {
+            String str = f.get();
+            assertTrue("Future done", f.isDone());
+            assertFalse("Future not cancelled", f.isCancelled());
+            assertTrue("HTML fetched", str.contains("University of Michigan"));
+            
+            str = f.get();
+            assertEquals("Fetcher only called once", 1, fetcher.numCalls);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Unexpected exception:" + e.toString());
+        }
+        
+    }
+    
     private class HTTPFetcher implements CacheFetcher<String> {
         private String myUrl;
         public HTTPFetcher(String url_) {
             myUrl = url_;
         }
         
+        public int numCalls = 0;
+        
         public String call(int labels) throws IOException {
+            synchronized(this) {
+                numCalls++;
+            }
+            
             URL url = new URL(myUrl);
             URLConnection conn = url.openConnection();
             InputStream in = conn.getInputStream();

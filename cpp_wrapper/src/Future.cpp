@@ -1,5 +1,6 @@
 #include "Future.h"
 #include "eac_utility.h"
+#include "jclasses.h"
 #include <stdexcept>
 #include <sstream>
 using std::ostringstream;
@@ -7,10 +8,7 @@ using std::ostringstream;
 long 
 Future::getPtr(JNIEnv *jenv, jobject swig_voidptr)
 {
-    jclass clazz = jenv->FindClass("edu/umich/eac/SWIGTYPE_p_void");
-    if (!clazz || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find SWIGTYPE_p_void class");
-    }
+    jclass clazz = JClasses::SWIGTYPE_p_void;
     jmethodID mid = jenv->GetStaticMethodID(
         clazz, "getCPtr", "(Ledu/umich/eac/SWIGTYPE_p_void;)I"
     );
@@ -31,10 +29,8 @@ static void throwNativeException(JNIEnv *jenv, jthrowable err)
     jenv->ExceptionClear();
 
     jclass throwable = jenv->GetObjectClass(err);
-    jclass cancel_exception 
-        = jenv->FindClass("java/util/concurrent/CancellationException");
-    jclass timeout_exception 
-        = jenv->FindClass("java/util/concurrent/TimeoutException");
+    jclass cancel_exception = JClasses::CancellationException;
+    jclass timeout_exception = JClasses::TimeoutException;
     jmethodID get_message
         = jenv->GetMethodID(throwable, "getMessage", "()Ljava/lang/String;");
         
@@ -117,7 +113,7 @@ static const char *enumNames[SECONDS+1] = {
 jobject
 getEnumValue(JNIEnv *jenv, enum TimeUnit units)
 {
-    jclass clazz = jenv->FindClass("java/util/concurrent/TimeUnit");
+    jclass clazz = JClasses::TimeUnit;
     if (!clazz || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find TimeUnit class");
     }
@@ -178,7 +174,7 @@ Future::Future(JavaVM *jvm, jobject jfuture_)
     jfuture = jfuture_; // global ref; release in destructor
     
     JNIEnv *jenv = getJNIEnv(jvm);
-    jclass futureClass = jenv->FindClass("java/util/concurrent/Future");
+    jclass futureClass = JClasses::Future;
     if (!futureClass || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find Future class");
     }

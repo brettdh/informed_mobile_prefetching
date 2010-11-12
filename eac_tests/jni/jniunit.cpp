@@ -4,13 +4,14 @@
 using std::ostringstream;
 #include <eac_utility.h>
 #include "jniunit.h"
+#include <jclasses.h>
 
 namespace jniunit {
     void callNativeFunction(JNIEnv *jenv, 
                             const char *name, const char *sig, 
                             const char *msg, ...) {
         ;
-        jclass cls = jenv->FindClass("junit/framework/Assert");
+        jclass cls = JClasses::Assert;
         if (!cls || JAVA_EXCEPTION_OCCURRED(jenv)) {
             /* class not found */
             throw std::runtime_error("Assert class not found!");

@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <string>
 #include <sys/time.h>
+#include "EnergyAdaptiveCache.h"
 using std::ostringstream; 
 using std::setw; using std::setfill; using std::hex;
 using std::string;
@@ -17,9 +18,12 @@ using std::string;
 JNIEnv *
 getJNIEnv(JavaVM *jvm)
 {
+    eac_dprintf("Thread %x attached to JVM\n", 
+                (unsigned int) pthread_self());
     JNIEnv *jenv = NULL;
     jint rc = jvm->AttachCurrentThread(&jenv, NULL);
     if (rc == 0) {
+        EnergyAdaptiveCache::detacher::addSelf(jvm);
         return jenv;
     }
     throw std::runtime_error("Couldn't get JNIEnv!");

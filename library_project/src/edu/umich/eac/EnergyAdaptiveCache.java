@@ -12,6 +12,8 @@ import java.util.concurrent.CancellationException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
+import java.lang.reflect.Method;
+import java.lang.reflect.InvocationTargetException;
 
 import android.util.Log;
 
@@ -19,7 +21,13 @@ import edu.umich.eac.FetchFuture;
 import edu.umich.eac.CacheFetcher;
 
 public class EnergyAdaptiveCache {
-    private String TAG = EnergyAdaptiveCache.class.getName();
+    public static void forceLoad() {
+        Log.d(TAG, "Forced classloading");
+        JNICacheFetcher.forceLoad();
+        SWIGTYPE_p_void.forceLoad();
+    }
+    
+    private static String TAG = EnergyAdaptiveCache.class.getName();
     
     private ExecutorService executor;
     
@@ -54,16 +62,28 @@ public class EnergyAdaptiveCache {
         }
     }
     
-    /** Hint a future access and start prefetching immediately,
+    /** Hint a future access and start prefetching it immediately,
      *  bypassing any deferral decision.
      *
      *  This is useful for testing.
      */
     public <V> Future<V> prefetchNow(CacheFetcher<V> fetcher) {
+        return fetchNow(fetcher, false);
+    }
+    
+    /** "Hint" an immediate access and start fetching it immediately.
+     *
+     *  This is useful for demand fetches that weren't hinted in advance.
+     */
+    public <V> Future<V> fetch(CacheFetcher<V> fetcher) {
+        return fetchNow(fetcher, true);
+    }
+    
+    private <V> Future<V> fetchNow(CacheFetcher<V> fetcher, boolean demand) {
         FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
         prefetchCache.add(fetchFuture);
-        try {   
-            fetchFuture.startAsync();
+        try {
+            fetchFuture.startAsync(demand);
         } catch (CancellationException e) {
             Log.e(TAG, "No-defer prefetch cancelled before it was sent");
             fetchFuture = null;
@@ -120,7 +140,7 @@ public class EnergyAdaptiveCache {
                     // Here is where we implement the prefetch delay strategy.
                     // To start, we implement the most aggressive strategy:
                     //   When a prefetch is enqueued, start it immediately.
-                    prefetch.startAsync();
+                    prefetch.startAsync(false);
                     
                     // For testing, we can also try the 
                     //  most conservative strategy: never start prefetches.
