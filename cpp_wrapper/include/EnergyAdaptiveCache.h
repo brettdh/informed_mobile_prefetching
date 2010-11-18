@@ -15,6 +15,8 @@ enum PrefetchStrategyType {
     NUM_STRATEGIES
 };
 
+enum PrefetchStrategyType getEnumValue(const char *typeStr);
+
 class EnergyAdaptiveCache {
 public:
     EnergyAdaptiveCache(JNIEnv *env, PrefetchStrategyType type);

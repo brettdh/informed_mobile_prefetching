@@ -13,6 +13,17 @@ static const char *enumNames[NUM_STRATEGIES] = {
     "CONSERVATIVE"
 };
 
+enum PrefetchStrategyType
+getEnumValue(const char *typeStr)
+{
+    for (int i = 0; i < NUM_STRATEGIES; ++i) {
+        if (!strcmp(enumNames[i], typeStr)) {
+            return PrefetchStrategyType(i);
+        }
+    }
+    return NUM_STRATEGIES;
+}
+
 static jobject
 getEnumValue(JNIEnv *jenv, enum PrefetchStrategyType type)
 {
