@@ -4,13 +4,14 @@ import java.util.concurrent.Future;
 import android.test.InstrumentationTestCase;
 
 import edu.umich.eac.EnergyAdaptiveCache;
+import edu.umich.eac.PrefetchStrategyType;
 import edu.umich.eac.CacheFetcher;
 
 public class SimpleNoNetworkTest extends InstrumentationTestCase {
     private EnergyAdaptiveCache cache;
     
     protected void setUp() {
-        cache = new EnergyAdaptiveCache();
+        cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
     }
     
     public void testImmediateGet() {

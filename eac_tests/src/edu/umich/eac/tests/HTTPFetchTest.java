@@ -10,13 +10,14 @@ import java.io.IOException;
 import android.test.InstrumentationTestCase;
 
 import edu.umich.eac.EnergyAdaptiveCache;
+import edu.umich.eac.PrefetchStrategyType;
 import edu.umich.eac.CacheFetcher;
 
 public class HTTPFetchTest extends InstrumentationTestCase {
     private EnergyAdaptiveCache cache;
     
     protected void setUp() {
-        cache = new EnergyAdaptiveCache();
+        cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
     }
     
     public void testFetch() {

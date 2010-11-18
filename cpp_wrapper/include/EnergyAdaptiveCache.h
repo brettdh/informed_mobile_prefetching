@@ -8,9 +8,16 @@ class Future;
 
 #include "JNICacheFetcher.h"
 
+enum PrefetchStrategyType {
+    AGGRESSIVE,
+    CONSERVATIVE,
+    // ...
+    NUM_STRATEGIES
+};
+
 class EnergyAdaptiveCache {
 public:
-    EnergyAdaptiveCache(JNIEnv *env);
+    EnergyAdaptiveCache(JNIEnv *env, PrefetchStrategyType type);
     ~EnergyAdaptiveCache();
     
     Future * prefetch(JNICacheFetcherPtr fetcher);

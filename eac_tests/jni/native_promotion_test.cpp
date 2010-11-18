@@ -45,7 +45,7 @@ static Future *future;
 CDECL JNIEXPORT void JNICALL 
 Java_edu_umich_eac_tests_NativePromotionTest_setUp(JNIEnv *jenv, jobject jobj)
 {
-    cache = new EnergyAdaptiveCache(jenv);
+    cache = new EnergyAdaptiveCache(jenv, AGGRESSIVE);
     fetcher.reset(new PromotionFetcher());
     future = cache->prefetchNow(fetcher);
 

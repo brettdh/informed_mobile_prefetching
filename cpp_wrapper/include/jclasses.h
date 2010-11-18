@@ -15,6 +15,7 @@ public:
     static jclass TimeUnit;
     static jclass Future;
     static jclass Assert;
+    static jclass PrefetchStrategyType;
 private:
     static jclass find(JNIEnv *jenv, const char *name);
 };

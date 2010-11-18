@@ -7,10 +7,38 @@
 #include "eac_utility.h"
 #include "jclasses.h"
 
+
+static const char *enumNames[NUM_STRATEGIES] = {
+    "AGGRESSIVE",
+    "CONSERVATIVE"
+};
+
+static jobject
+getEnumValue(JNIEnv *jenv, enum PrefetchStrategyType type)
+{
+    jclass clazz = JClasses::PrefetchStrategyType;
+    if (!clazz || JAVA_EXCEPTION_OCCURRED(jenv)) {
+        throw std::runtime_error("Can't find PrefetchStrategyType class");
+    }
+    jfieldID fid = jenv->GetStaticFieldID(
+        clazz, enumNames[type], "Ledu/umich/eac/PrefetchStrategyType;"
+    );
+                                          
+    if (!fid || JAVA_EXCEPTION_OCCURRED(jenv)) {
+        throw std::runtime_error("Can't find PrefetchStrategyType constant");
+    }
+    jobject jobj = jenv->GetStaticObjectField(clazz, fid);
+    if (JAVA_EXCEPTION_OCCURRED(jenv)) {
+        throw std::runtime_error("Can't get PrefetchStrategyType constant");
+    }
+    return jobj;
+}
+
 static const char *prefetchMethodSig = 
     "(Ledu/umich/eac/CacheFetcher;)Ljava/util/concurrent/Future;";
 
-EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv)
+EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv, 
+                                         enum PrefetchStrategyType type)
     : vm(NULL), cacheClazz(NULL), realCacheObj(NULL), prefetchMID(NULL) 
 {
     vm = NULL;
@@ -36,11 +64,14 @@ EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv)
     if (!fetchMID || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find fetch method");
     }
-    jmethodID ctor = jenv->GetMethodID(cacheClazz, "<init>", "()V");
+    jmethodID ctor = jenv->GetMethodID(
+        cacheClazz, "<init>", "(Ledu/umich/eac/PrefetchStrategyType;)V"
+    );
     if (!ctor || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw std::runtime_error("Can't find EAC constructor");
     }
-    jobject local = jenv->NewObject(cacheClazz, ctor);
+    jobject prefetchType = getEnumValue(jenv, type);
+    jobject local = jenv->NewObject(cacheClazz, ctor, prefetchType);
     if (!local || JAVA_EXCEPTION_OCCURRED(jenv) ||
         !(realCacheObj = jenv->NewGlobalRef(local))) {
         throw std::runtime_error("Can't create EnergyAdaptiveCache "
@@ -171,4 +202,3 @@ EnergyAdaptiveCache::detacher::initer::~initer()
 {
     pthread_key_delete(EnergyAdaptiveCache::detacher::key);
 }
-

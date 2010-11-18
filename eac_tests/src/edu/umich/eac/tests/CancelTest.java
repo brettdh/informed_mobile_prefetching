@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import android.test.InstrumentationTestCase;
 
 import edu.umich.eac.EnergyAdaptiveCache;
+import edu.umich.eac.PrefetchStrategyType;
 import edu.umich.eac.CacheFetcher;
 
 public class CancelTest extends InstrumentationTestCase {
@@ -15,7 +16,7 @@ public class CancelTest extends InstrumentationTestCase {
     private Future<String> future;
     
     protected void setUp() throws InterruptedException {
-        cache = new EnergyAdaptiveCache();
+        cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
         fetcher = new CancelFetcher();
         future = cache.prefetch(fetcher);
         Thread.currentThread().sleep(1000);

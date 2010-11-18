@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit;
 import android.test.InstrumentationTestCase;
 
 import edu.umich.eac.EnergyAdaptiveCache;
+import edu.umich.eac.PrefetchStrategyType;
 import edu.umich.eac.CacheFetcher;
 import edu.umich.eac.IntNWLabels;
 
@@ -16,7 +17,7 @@ public class PromotionTest extends InstrumentationTestCase {
     private Future<String> future;
     
     protected void setUp() throws InterruptedException {
-        cache = new EnergyAdaptiveCache();
+        cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
         fetcher = new PromotionFetcher();
         future = cache.prefetchNow(fetcher);
         Thread.currentThread().sleep(1000);

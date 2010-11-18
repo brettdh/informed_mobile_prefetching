@@ -125,7 +125,7 @@ getEnumValue(JNIEnv *jenv, enum TimeUnit units)
     }
     jobject jobj = jenv->GetStaticObjectField(clazz, fid);
     if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Future.get() threw an exception");
+        throw std::runtime_error("Can't get TimeUnit constant");
     }
     return jobj;
 }

@@ -101,7 +101,8 @@ public class EnergyAdaptiveCache {
         //       e.g. too early, too late
     }
     
-    public EnergyAdaptiveCache() {
+    
+    public EnergyAdaptiveCache(PrefetchStrategyType strategyType) {
         Log.d(TAG, "Created a new EnergyAdaptiveCache");
         executor = Executors.newCachedThreadPool();
         prefetchQueue = new LinkedBlockingQueue<FetchFuture<?> >();
@@ -109,11 +110,14 @@ public class EnergyAdaptiveCache {
             new TreeSet<FetchFuture<?> >()
         );
         
+        strategy = PrefetchStrategy.create(strategyType);
+        
         prefetchThread = new PrefetchThread();
         prefetchThread.start();
     }
     
     private PrefetchThread prefetchThread;
+    private PrefetchStrategy strategy;
     
     private class PrefetchThread extends Thread {
         public void run() {
@@ -131,15 +135,7 @@ public class EnergyAdaptiveCache {
                     FetchFuture<?> prefetch = prefetchQueue.take();
                     prefetchCache.add(prefetch);
 
-                    // Here is where we implement the prefetch delay strategy.
-                    // To start, we implement the most aggressive strategy:
-                    //   When a prefetch is enqueued, start it immediately.
-                    prefetch.startAsync(false);
-                    
-                    // For testing, we can also try the 
-                    //  most conservative strategy: never start prefetches.
-                    //  That is, do nothing here and remove the above 
-                    //  call to startAsync.
+                    strategy.handlePrefetch(prefetch);
                     
                     // TODO: implement the real strategy
                     //  I imagine this will take the form of a 

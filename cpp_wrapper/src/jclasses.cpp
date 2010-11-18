@@ -26,6 +26,7 @@ jclass JClasses::TimeoutException = NULL;
 jclass JClasses::TimeUnit = NULL;
 jclass JClasses::Future = NULL;
 jclass JClasses::Assert = NULL;
+jclass JClasses::PrefetchStrategyType = NULL;
 
 void
 JClasses::init(JNIEnv *jenv)
@@ -39,6 +40,7 @@ JClasses::init(JNIEnv *jenv)
         TimeUnit = find(jenv, "java/util/concurrent/TimeUnit");
         Future = find(jenv, "java/util/concurrent/Future");
         Assert = find(jenv, "junit/framework/Assert");
+        PrefetchStrategyType = find(jenv, "edu/umich/eac/PrefetchStrategyType");
     } catch (std::runtime_error& e) {
         eac_dprintf("failed loading class: %s\n", e.what());
     }
