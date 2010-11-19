@@ -102,9 +102,13 @@ public class EnergyAdaptiveCache {
     }
     
     
+    // Bound on the number of in-flight prefetches, similar to before.
+    // XXX: does this need to be configurable?
+    public static final int NUM_THREADS = 10;
+    
     public EnergyAdaptiveCache(PrefetchStrategyType strategyType) {
         Log.d(TAG, "Created a new EnergyAdaptiveCache");
-        executor = Executors.newCachedThreadPool();
+        executor = Executors.newFixedThreadPool(NUM_THREADS);
         prefetchQueue = new LinkedBlockingQueue<FetchFuture<?> >();
         prefetchCache = Collections.synchronizedSet(
             new TreeSet<FetchFuture<?> >()
