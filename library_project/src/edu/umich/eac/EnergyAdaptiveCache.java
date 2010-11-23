@@ -23,7 +23,8 @@ import edu.umich.eac.CacheFetcher;
 public class EnergyAdaptiveCache {
     private static String TAG = EnergyAdaptiveCache.class.getName();
     
-    private ExecutorService executor;
+    private ExecutorService bg_executor;
+    private ExecutorService fg_executor;
     
     // contains prefetches yet to be sent.
     private BlockingQueue<FetchFuture<?> > prefetchQueue;
@@ -85,10 +86,14 @@ public class EnergyAdaptiveCache {
         return fetchFuture;
     }
     
-    <V> Future<V> submit(Callable<V> fetcher) {
+    <V> Future<V> submit(Callable<V> fetcher, int demand_labels) {
         // TODO: record whatever necessary information
         // TODO: make a method to do that, and call it from FetchFuture
-        return executor.submit(fetcher);
+        if ((demand_labels & IntNWLabels.BACKGROUND) != 0) {
+            return bg_executor.submit(fetcher);
+        } else {
+            return fg_executor.submit(fetcher);
+        }
     }
     
     void remove(FetchFuture<?> fetchFuture) {
@@ -108,7 +113,9 @@ public class EnergyAdaptiveCache {
     
     public EnergyAdaptiveCache(PrefetchStrategyType strategyType) {
         Log.d(TAG, "Created a new EnergyAdaptiveCache");
-        executor = Executors.newFixedThreadPool(NUM_THREADS);
+        bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
+        fg_executor = Executors.newCachedThreadPool();
+
         prefetchQueue = new LinkedBlockingQueue<FetchFuture<?> >();
         prefetchCache = Collections.synchronizedSet(
             new TreeSet<FetchFuture<?> >()

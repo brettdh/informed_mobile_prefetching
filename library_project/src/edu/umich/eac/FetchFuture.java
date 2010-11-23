@@ -78,7 +78,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         
         if (realFuture == null) {
             // haven't submitted it yet; better do it now
-            realFuture = cache.submit(fetcher);
+            realFuture = cache.submit(fetcher, fetcher.labels);
         }
     }
     
