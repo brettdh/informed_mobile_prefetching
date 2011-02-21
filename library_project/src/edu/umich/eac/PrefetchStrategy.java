@@ -11,7 +11,7 @@ abstract class PrefetchStrategy {
     
     public static PrefetchStrategy create(PrefetchStrategyType type) {
         PrefetchStrategy strategy = null;
-        Class cls = strategies.get(type);
+        Class<?> cls = strategies.get(type);
         try {
             strategy = (PrefetchStrategy) cls.newInstance();
         } catch (IllegalAccessException e) {
@@ -22,9 +22,9 @@ abstract class PrefetchStrategy {
         return strategy;
     }
     
-    private static Map<PrefetchStrategyType, Class> strategies;
+    private static Map<PrefetchStrategyType, Class<?> > strategies;
     static {
-        strategies = new EnumMap<PrefetchStrategyType, Class>(
+        strategies = new EnumMap<PrefetchStrategyType, Class<?> >(
             PrefetchStrategyType.class
         );
         strategies.put(PrefetchStrategyType.AGGRESSIVE,

@@ -6,14 +6,10 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.CancellationException;
 import java.util.Collections;
 import java.util.Set;
 import java.util.TreeSet;
-import java.lang.reflect.Method;
-import java.lang.reflect.InvocationTargetException;
 
 import android.util.Log;
 

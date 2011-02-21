@@ -7,7 +7,7 @@
  * ----------------------------------------------------------------------------- */
 
 package edu.umich.eac;
-import android.util.Log;
+//import android.util.Log;
 
 public class SWIGTYPE_p_void {
   private int swigCPtr;
@@ -24,6 +24,6 @@ public class SWIGTYPE_p_void {
     return (obj == null) ? 0 : obj.swigCPtr;
   }
   
-  private static String TAG = SWIGTYPE_p_void.class.getName();
+  //private static String TAG = SWIGTYPE_p_void.class.getName();
 }
 

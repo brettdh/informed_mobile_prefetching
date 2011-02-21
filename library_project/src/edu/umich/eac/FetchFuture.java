@@ -12,11 +12,11 @@ import edu.umich.eac.IntNWLabels;
 
 class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     Future<V> realFuture;
-    CallableWrapperFetcher<V> fetcher;
+    CallableWrapperFetcher fetcher;
     boolean cancelled;
     private EnergyAdaptiveCache cache;
     
-    private class CallableWrapperFetcher<V> implements Callable<V> {
+    private class CallableWrapperFetcher implements Callable<V> {
         int labels;
         CacheFetcher<V> labeledFetcher;
         CallableWrapperFetcher(CacheFetcher<V> fetcher_) {
@@ -35,7 +35,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     
     FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_) {
         realFuture = null;
-        fetcher = new CallableWrapperFetcher<V>(fetcher_);
+        fetcher = new CallableWrapperFetcher(fetcher_);
         cancelled = false;
         cache = cache_;
     }
