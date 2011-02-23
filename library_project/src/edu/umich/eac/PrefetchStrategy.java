@@ -31,5 +31,7 @@ abstract class PrefetchStrategy {
                        AggressivePrefetchStrategy.class);
         strategies.put(PrefetchStrategyType.CONSERVATIVE,
                        ConservativePrefetchStrategy.class);
+        strategies.put(PrefetchStrategyType.ADAPTIVE,
+                       AdaptivePrefetchStrategy.class);
     }
 }
