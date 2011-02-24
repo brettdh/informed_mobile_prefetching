@@ -1,6 +1,5 @@
 package edu.umich.eac.tests;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Callable;
@@ -33,7 +32,8 @@ public class VanillaFutureTest extends InstrumentationTestCase {
             synchronized(this) {
                 numCalls++;
             }
-            Thread.currentThread().sleep(500);
+            Thread.currentThread();
+            Thread.sleep(500);
             return msg;
         }
     }

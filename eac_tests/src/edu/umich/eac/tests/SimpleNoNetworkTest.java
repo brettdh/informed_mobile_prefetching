@@ -50,7 +50,8 @@ public class SimpleNoNetworkTest extends InstrumentationTestCase {
         public String call(int labels) {
             if (delaySeconds > 0) {
                 try {
-                    Thread.currentThread().sleep(delaySeconds * 1000);
+                    Thread.currentThread();
+                    Thread.sleep(delaySeconds * 1000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     fail("Thread sleep interrupted; shouldn't happen");

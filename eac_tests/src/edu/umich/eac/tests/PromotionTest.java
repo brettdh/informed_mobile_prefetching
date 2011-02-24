@@ -2,7 +2,6 @@ package edu.umich.eac.tests;
 
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import android.test.InstrumentationTestCase;
 
@@ -20,15 +19,17 @@ public class PromotionTest extends InstrumentationTestCase {
         cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
         fetcher = new PromotionFetcher();
         future = cache.prefetchNow(fetcher);
-        Thread.currentThread().sleep(1000);
+        Thread.currentThread();
+        Thread.sleep(1000);
         assertFalse("Future not done yet", future.isDone());
         assertFalse("Future not cancelled yet", future.isCancelled());
     }
 
     public void testWaitForPrefetch() throws Exception {
         try {
-             // wait for prefetch to complete
-            Thread.currentThread().sleep(3000);
+             Thread.currentThread();
+            // wait for prefetch to complete
+            Thread.sleep(3000);
             
             String msg = future.get(1, TimeUnit.SECONDS);
             assertTrue("Did the prefetch", msg.contains("prefetch"));
@@ -50,8 +51,9 @@ public class PromotionTest extends InstrumentationTestCase {
     private class PromotionFetcher implements CacheFetcher<String> {
         public String call(int labels) throws InterruptedException {
             if ((labels & IntNWLabels.BACKGROUND) != 0) {
+                Thread.currentThread();
                 // simulate a background fetch taking longer (exaggerated)
-                Thread.currentThread().sleep(3000);
+                Thread.sleep(3000);
                 return "Got prefetch result";
             } else {
                 return "Got demand fetch result";

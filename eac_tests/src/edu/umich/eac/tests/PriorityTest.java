@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import android.test.InstrumentationTestCase;
 
@@ -20,7 +19,7 @@ public class PriorityTest extends InstrumentationTestCase {
         cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
         
         for (int i = 0; i < 20; ++i) {
-            Future future = cache.prefetch(new CancelFetcher());
+            Future<String> future = cache.prefetch(new CancelFetcher());
             futures.add(future); // so it doesn't get GC'd
             assertFalse("Future not done yet", future.isDone());
             assertFalse("Future not cancelled yet", future.isCancelled());
@@ -43,7 +42,8 @@ public class PriorityTest extends InstrumentationTestCase {
         public String call(int labels) throws InterruptedException {
             // Never return; just wait to be cancelled.
             while (true) {
-                Thread.currentThread().sleep(3600 * 1000);
+                Thread.currentThread();
+                Thread.sleep(3600 * 1000);
             }
         }
     }

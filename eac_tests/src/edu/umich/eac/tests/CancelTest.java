@@ -19,14 +19,15 @@ public class CancelTest extends InstrumentationTestCase {
         cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
         fetcher = new CancelFetcher();
         future = cache.prefetch(fetcher);
-        Thread.currentThread().sleep(1000);
+        Thread.currentThread();
+        Thread.sleep(1000);
         assertFalse("Future not done yet", future.isDone());
         assertFalse("Future not cancelled yet", future.isCancelled());
     }
 
     public void testGetTimeout() {
         try {
-            String msg = future.get(1, TimeUnit.SECONDS);
+            future.get(1, TimeUnit.SECONDS);
             fail("Should have thrown TimeoutException");
         } catch (TimeoutException e) {
             assertFalse("Future not done after timeout", future.isDone());
@@ -43,7 +44,7 @@ public class CancelTest extends InstrumentationTestCase {
         assertTrue("Future is cancelled", future.isCancelled());
         assertTrue("Future is not done after cancel", future.isDone());
         try {
-            String msg = future.get(1, TimeUnit.SECONDS);
+            future.get(1, TimeUnit.SECONDS);
             fail("Cancelled Future.get() should throw CancellationException");
         } catch (TimeoutException e) {
             fail("Cancelled Future.get() should fail outright, not time out");
@@ -58,7 +59,8 @@ public class CancelTest extends InstrumentationTestCase {
         public String call(int labels) throws InterruptedException {
             // Never return; just wait to be cancelled.
             while (true) {
-                Thread.currentThread().sleep(3600 * 1000);
+                Thread.currentThread();
+                Thread.sleep(3600 * 1000);
             }
         }
     }
