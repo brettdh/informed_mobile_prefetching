@@ -66,9 +66,28 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
     public void handlePrefetch(FetchFuture<?> prefetch) {
         /* Possible actions to do with a prefetch:
          * a) Issue it now
-         * b) Re-schedule this decision X seconds from now
+         * b) Defer it until I get new information
          * 
          * How to pick between these?
+         * 
+         * if I have enough supply:
+         *   if the time is right:
+         *     issue it now
+         *   else:
+         *     # TODO: decide what to wait for
+         * else:
+         *   if the time is right:
+         *     # TODO: 
+         *     #  One possible scenario here is:
+         *     #  - In 10 seconds, I'm going to lose the wifi
+         *     #  - Sometime after I lose the wifi, my resource supply
+         *     #     will catch up with the predicted demand
+         *     #  - The resource budget tells me that I should defer, but...
+         *     #  - ...deferring will actually use more energy
+         *     #  - So, I should do it now
+         *     # How to detect this: 
+         *     # - Calculate (predicted_demand - supply)
+         *     # - Calculate  (TODO: pick up here)
          * 
          * if the time is right and I have enough supply:
          *   issue it now
