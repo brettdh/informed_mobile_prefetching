@@ -1,9 +1,68 @@
 package edu.umich.eac;
 
+import java.util.Date;
+import java.util.PriorityQueue;
+import java.util.Timer;
+import java.util.TimerTask;
+
 import edu.umich.eac.PrefetchStrategy;
 import edu.umich.eac.FetchFuture;
 
 class AdaptivePrefetchStrategy extends PrefetchStrategy {
+    class PrefetchTask extends TimerTask implements Comparable<PrefetchTask> {
+        private Date scheduledTime;
+        private FetchFuture<?> prefetch;
+        
+        /** 
+         * Schedule the prefetch for this many milliseconds in the future. 
+         */
+        PrefetchTask(FetchFuture<?> pf, int millis) {
+            prefetch = pf;
+            schedule(millis);
+        }
+        public void run() {
+            prefetch.addToPrefetchQueue();
+        }
+        
+        void schedule(int millis) {
+            scheduledTime = new Date(System.currentTimeMillis() + millis);
+        }
+
+        public int compareTo(PrefetchTask another) {
+            return scheduledTime.compareTo(another.scheduledTime);
+        }
+    }
+    private Timer timer = new Timer();
+    private PriorityQueue<PrefetchTask> deferredPrefetches = 
+        new PriorityQueue<PrefetchTask>();
+    
+    private Date mStartTime;
+    private Date mGoalTime;
+    private int mEnergyBudget;
+    private int mDataBudget;
+    
+    private int mEnergySpent;
+    private int mDataSpent;
+    
+    // these are sampled rates of spending.
+    private double mSampledEnergyUsage; // Joules/sec (Watts)
+    private double mSampledDataUsage;   // bytes/sec
+    
+    @Override
+    public void setup(Date goalTime, int energyBudget, int dataBudget) {
+        mStartTime = new Date();
+        mGoalTime = goalTime;
+        mEnergyBudget = energyBudget;
+        mDataBudget = dataBudget;
+        mEnergySpent = 0;
+        mDataSpent = 0;
+        
+        mSampledEnergyUsage = 0;
+        mSampledDataUsage = 0;
+        
+        // TODO: start monitoring thread?
+    }
+    
     public void handlePrefetch(FetchFuture<?> prefetch) {
         /* Possible actions to do with a prefetch:
          * a) Issue it now
@@ -17,13 +76,7 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *   compute the earliest possible time that I'll have enough
          *   reschedule decision for then
          * else if the time's not right but I have enough supply:
-         *   compute the priority weight of latency vs. resource conservation
-         *   if latency has total priority:
-         *     issue now
-         *   else if latency has higher priority:
-         *     reschedule for earliest time that latency takes total priority
-         *   else:
-         *     reschedule for earliest time that latency takes higher priority
+         *   issue it now
          * else if the time's not right and I don't have enough supply:
          *   reschedule for earliest time that I might have enough supply
          * 
@@ -39,28 +92,6 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *    means the time when, if resource demand dropped to the
          *    baseline starting now, the supply would exceed the
          *    predicted demand by at least the computed threshold.
-         * 4) "The priority weight of latency vs. resource conservation" 
-         *    means the TIP-style cost/benefit analysis determining whether
-         *    reducing request latency or conserving the limited resource
-         *    is more important right now.  I still haven't quite nailed 
-         *    this down yet.  
-         *    
-         *    This could be a function of (the time to the goal and the energy
-         *    supply and demand) that gives a number in the range [0.0, 1.0], 
-         *    where 0.0 means reducing latency is infinitely more important than
-         *    conserving the resource, and 1.0 means the opposite.
-         *    
-         *    Issue: 
-         *       This now feels redundant with the "enough supply" notion 
-         *       that comes from Jason's papers; i.e. just another way to
-         *       make a decision about the same question.  Is there anything
-         *       else here?
-         *       If this is redundant and we don't need it, the desired result
-         *       is as if this function exists but always returns 0.0; we 
-         *       replace this entire conditional sequence with "issue it now,"
-         *       and the "priority" is already captured by the "enough supply"
-         *       threshold.
-         * 
          *
          * For the time being, supply and demand will be measured in percent of
          * full battery capacity rather than Joules, since the G1 doesn't
@@ -68,10 +99,90 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          * the Nexus One does provide current measurements.
          * Alternatively, I might be able to get these measurements from the 
          * PowerTutor power monitor by parsing its ongoing log file.
+         * EDIT: this is looking less and less likely without the source code.
+         *       The log file can't be parsed on-line, since it's generated
+         *       as a compressed stream, so it doesn't get written out in
+         *       real time.  I could listen for widget update broadcasts,
+         *       but I haven't been able to get that working yet.
+         *       Plan: just get something working first.
          * 
          * The relation to the Odyssey energy adaptation seems fairly direct,
          * if fetch response time is our analog to fidelity.
          * 
          */
+        
+        if (shouldPrefetchNow() && enoughSupply()) {
+            issuePrefetch(prefetch);
+        } else if (shouldPrefetchNow() && !enoughSupply()) {
+            int millis = computeRescheduleTime();
+            rescheduleDecision(prefetch, millis);
+        } else if (!shouldPrefetchNow() && enoughSupply()) {
+            prefetch.startAsync(false);
+        } else {
+            int millis = computeRescheduleTime();
+            rescheduleDecision(prefetch, millis);
+        }
+    }
+    
+    /**
+     * Compute the time in the future at which this prefetch decision
+     * should be reconsidered.
+     * @return amount of time in milliseconds.
+     */
+    private int computeRescheduleTime() {
+        // TODO: implement
+        return 1000;
+    }
+
+    void issuePrefetch(FetchFuture<?> prefetch) {
+        deferredPrefetches.remove(prefetch);
+        prefetch.startAsync(false);
+    }
+    
+    private boolean shouldPrefetchNow() {
+        // TODO: implement
+        return true;
+    }
+    
+    private double timeUntilGoal() {
+        Date now = new Date();
+        return (mGoalTime.getTime() - now.getTime()) / 1000.0;
+    }
+    
+    private double sampledEnergyUsage() {
+        /*
+        synchronized (mSampledEnergyUsage) {
+            return mSampledEnergyUsage;
+        }
+        */
+        return 0.0;
+    }
+    
+    private double sampledDataUsage() {
+        /*
+        synchronized (mSampledDataUsage) {
+            return mSampledDataUsage;
+        }
+        */
+        return 0.0;
+    }
+    
+    private boolean enoughSupply() {
+        // TODO: implement
+        /*
+        int energySupply = mEnergyBudget - mEnergySpent;
+        int dataSupply = mDataBudget - mDataSpent;
+        int predictedEnergyDemand = (int) (sampledEnergyUsage() * timeUntilGoal());
+        int predictedDataDemand = (int) (sampledDataUsage() * timeUntilGoal());
+        */
+        
+        return true;
+    }
+    
+    private void rescheduleDecision(FetchFuture<?> prefetch, 
+                                    int millisInFuture) {
+        PrefetchTask task = new PrefetchTask(prefetch, millisInFuture);
+        deferredPrefetches.add(task);
+        timer.schedule(task, millisInFuture);
     }
 }

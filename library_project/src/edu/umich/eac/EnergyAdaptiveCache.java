@@ -8,6 +8,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -43,7 +44,7 @@ public class EnergyAdaptiveCache {
     public <V> Future<V> prefetch(CacheFetcher<V> fetcher) {
         try {
             FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
-            prefetchQueue.put(fetchFuture);
+            addToQueue(fetchFuture);
         
             return fetchFuture;
         } catch (InterruptedException e) {
@@ -51,6 +52,10 @@ public class EnergyAdaptiveCache {
             assert false;
             return null;
         }
+    }
+    
+    void addToQueue(FetchFuture<?> prefetch) throws InterruptedException {
+        prefetchQueue.put(prefetch);
     }
     
     /** Hint a future access and start prefetching it immediately,
@@ -107,7 +112,14 @@ public class EnergyAdaptiveCache {
     // XXX: does this need to be configurable?
     public static final int NUM_THREADS = 10;
     
+    /* Should only call this one if the strategy ignores the params. */
     public EnergyAdaptiveCache(PrefetchStrategyType strategyType) {
+        this(strategyType, new Date(), 0, 0);
+    }
+    public EnergyAdaptiveCache(PrefetchStrategyType strategyType,
+                               Date goalTime, 
+                               int energyBudget,
+                               int dataBudget) {
         Log.d(TAG, "Created a new EnergyAdaptiveCache");
         bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
         fg_executor = Executors.newCachedThreadPool();
@@ -117,7 +129,8 @@ public class EnergyAdaptiveCache {
             new TreeSet<FetchFuture<?> >()
         );
         
-        strategy = PrefetchStrategy.create(strategyType);
+        strategy = PrefetchStrategy.create(strategyType, goalTime, 
+                                           energyBudget, dataBudget);
         
         prefetchThread = new PrefetchThread();
         prefetchThread.start();
