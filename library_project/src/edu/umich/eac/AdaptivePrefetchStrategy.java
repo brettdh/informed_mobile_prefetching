@@ -74,12 +74,12 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *   if the time is right:
          *     issue it now
          *   else:
-         *     # TODO: decide what to wait for
+         *     # TODO: if conditions are getting better, wait?
          * else:
          *   if the time is right:
          *     # TODO: 
          *     #  One possible scenario here is:
-         *     #  - In 10 seconds, I'm going to lose the wifi
+         *     #  - I'm going to lose the wifi soon
          *     #  - Sometime after I lose the wifi, my resource supply
          *     #     will catch up with the predicted demand
          *     #  - The resource budget tells me that I should defer, but...
@@ -87,7 +87,17 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *     #  - So, I should do it now
          *     # How to detect this: 
          *     # - Calculate (predicted_demand - supply)
-         *     # - Calculate  (TODO: pick up here)
+         *     # - Calculate the predicted time until conditions get worse
+         *     # - TODO: ...
+         *   else:
+         *     defer
+         * 
+         * 
+         * Things I can learn from the Future interface:
+         * 1) Cache hit rate
+         * 2) Prefetch->fetch delay
+         * 3) Whether I'm issuing prefetches too early / too late
+         * 
          * 
          * if the time is right and I have enough supply:
          *   issue it now
