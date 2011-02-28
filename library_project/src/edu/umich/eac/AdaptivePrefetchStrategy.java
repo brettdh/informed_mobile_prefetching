@@ -74,7 +74,12 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *   if the time is right:
          *     issue it now
          *   else:
-         *     # TODO: if conditions are getting better, wait?
+         *     lookup average prefetch->fetch delay
+         *     predict time until conditions get better
+         *     if average delay is less than time until conditions get better:
+         *       issue it now
+         *     else:
+         *       defer
          * else:
          *   if the time is right:
          *     # TODO: 
@@ -86,17 +91,23 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *     #  - ...deferring will actually use more energy
          *     #  - So, I should do it now
          *     # How to detect this: 
-         *     # - Calculate (predicted_demand - supply)
-         *     # - Calculate the predicted time until conditions get worse
-         *     # - TODO: ...
+         *     calculate (predicted_demand - supply)
+         *     calculate the predicted time until conditions get worse
+         *     if the (TODO: pick up here)
          *   else:
          *     defer
          * 
+         * 
+         * Ways in which I get new information:
+         * 1) New energy/data samples (fixed sampling interval)
+         * 2) 
          * 
          * Things I can learn from the Future interface:
          * 1) Cache hit rate
          * 2) Prefetch->fetch delay
          * 3) Whether I'm issuing prefetches too early / too late
+         * 4) Whether some prefetches are not being fetched
+         * 
          * 
          * 
          * if the time is right and I have enough supply:
