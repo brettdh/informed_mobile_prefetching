@@ -94,9 +94,9 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *     calculate cost(send_it_in_worse_conditions) - cost(send_it_now)
          *               = savings(send_it_now)
          *     if savings(send_it_now) > shortfall:
-         *     	 issue it now
+         *       issue it now
          *     else:
-         *     	 defer 
+         *       defer
          *   else: # conditions aren't improving, don't have enough supply
          *     defer
          * 
@@ -105,7 +105,7 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          * 1) New energy/data samples (fixed sampling interval)
          * 2) New prediction information (fixed sampling interval)
          *    - Using this at a short sampling interval will require the
-         *    	re-implementation in C
+         *      re-implementation in C
          * 3) New AP information from Breadcrumbs (when connected)
          * 
          * Things I can learn from the Future interface:
@@ -120,7 +120,9 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *    - This and hit rate are the utility of the cache.
          * 
          * 
-         * 
+         * ---------------
+         *  First attempt
+         *  
          * if the time is right and I have enough supply:
          *   issue it now
          * else if the time is right but I don't have enough supply:
@@ -143,6 +145,7 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *    means the time when, if resource demand dropped to the
          *    baseline starting now, the supply would exceed the
          *    predicted demand by at least the computed threshold.
+         * ---------------
          *
          * For the time being, supply and demand will be measured in percent of
          * full battery capacity rather than Joules, since the G1 doesn't
