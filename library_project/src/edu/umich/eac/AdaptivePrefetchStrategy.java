@@ -75,38 +75,49 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *     issue it now
          *   else:
          *     lookup average prefetch->fetch delay
-         *     predict time until conditions get better
+         *     window = predict(time until conditions get better)
          *     if average delay is less than time until conditions get better:
          *       issue it now
          *     else:
          *       defer
          * else:
          *   if the time is right:
-         *     # TODO: 
          *     #  One possible scenario here is:
          *     #  - I'm going to lose the wifi soon
          *     #  - Sometime after I lose the wifi, my resource supply
          *     #     will catch up with the predicted demand
          *     #  - The resource budget tells me that I should defer, but...
          *     #  - ...deferring will actually use more energy
-         *     #  - So, I should do it now
+         *     #  - So, I should (maybe) do it now
          *     # How to detect this: 
-         *     calculate (predicted_demand - supply)
-         *     calculate the predicted time until conditions get worse
-         *     if the (TODO: pick up here)
-         *   else:
+         *     calculate shortfall = (predicted_demand - supply)
+         *     calculate cost(send_it_in_worse_conditions) - cost(send_it_now)
+         *               = savings(send_it_now)
+         *     if savings(send_it_now) > shortfall:
+         *     	 issue it now
+         *     else:
+         *     	 defer 
+         *   else: # conditions aren't improving, don't have enough supply
          *     defer
          * 
          * 
          * Ways in which I get new information:
          * 1) New energy/data samples (fixed sampling interval)
-         * 2) 
+         * 2) New prediction information (fixed sampling interval)
+         *    - Using this at a short sampling interval will require the
+         *    	re-implementation in C
+         * 3) New AP information from Breadcrumbs (when connected)
          * 
          * Things I can learn from the Future interface:
          * 1) Cache hit rate
+         *    -All other things being equal, issue more prefetches
+         *     if hit rate is lower
          * 2) Prefetch->fetch delay
          * 3) Whether I'm issuing prefetches too early / too late
-         * 4) Whether some prefetches are not being fetched
+         * 4) Percentage of prefetches that are actually fetched
+         *    - All other things being equal, issue fewer prefetches
+         *      if this percentage is low 
+         *    - This and hit rate are the utility of the cache.
          * 
          * 
          * 
