@@ -70,18 +70,24 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          * 
          * How to pick between these?
          * 
+         * # try to only spend resources on the fraction of prefetches
+         * #  that are likely to be promoted
+         * with probability(1.0 - prefetch promotion rate):
+         *   if time_since_app_hinted_prefetch < avg prefetch->fetch delay:
+         *   defer
+         * 
          * if I have enough supply:
-         *   if the time is right:
-         *     issue it now
-         *   else:
+         *   if conditions will get better:
          *     lookup average prefetch->fetch delay
          *     window = predict(time until conditions get better)
          *     if average delay is less than time until conditions get better:
          *       issue it now
          *     else:
          *       defer
+         *   else: # conditions will persist or get worse
+         *     issue it now
          * else:
-         *   if the time is right:
+         *   if conditions will get worse:
          *     #  One possible scenario here is:
          *     #  - I'm going to lose the wifi soon
          *     #  - Sometime after I lose the wifi, my resource supply
@@ -101,25 +107,55 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *     defer
          * 
          * 
-         * Ways in which I get new information:
+         * Breaking down what this means a bit:
+         * 1) "Enough supply" means that supply exceeds predicted demand
+         *    by at least the computed threshold (Odyssey-style; 
+         *    SOSP '99, Section 5.1.3, "Triggering adaptation")
+         * 2) "Conditions will [change somehow]" refers to a prediction
+         *    about network availability and quality, for a certain window 
+         *    into the future, that might change my current decision of 
+         *    whether to prefetch or not.
+         * 
+         * Ways in which I get new information (and when I get it):
          * 1) New energy/data samples (fixed sampling interval)
          * 2) New prediction information (fixed sampling interval)
          *    - Using this at a short sampling interval will require the
-         *      re-implementation in C
-         * 3) New AP information from Breadcrumbs (when connected)
+         *      partial re-implementation in C
+         * 3) New AP information (when connected)
+         * 4) Stats updated by Future interface (when application uses it)
          * 
          * Things I can learn from the Future interface:
          * 1) Cache hit rate
-         *    -All other things being equal, issue more prefetches
-         *     if hit rate is lower
+         *    -Two kinds of cache miss:
+         *      a) Fetches that the app didn't hint
+         *         (or perhaps hinted and then immediately fetched)
+         *      b) Prefetches that I haven't promoted yet
+         *    -Lots of (a) misses indicates the app isn't hinting well
+         *    -Lots of (b) misses indicates I'm not issuing prefetches
+         *     soon enough
+         *    -All other things being equal, issue fewer prefetches
+         *     if (a) is lower and more prefetches if (b) is lower
+         *    -Initialize to 0.0 to force prefetches at first
+         *    -Update when future->get() is called
+         *    -Not quite sure how to incorporate (a)
+         *    -The prefetch->fetch delay tracking may take care of (b)
          * 2) Prefetch->fetch delay
          *    -Tells me whether I'm issuing prefetches too early / too late
          *    -Goal: not too late, just a little early.  
          *           Use feedback to make this settle.
-         * 3) Percentage of prefetches that are actually fetched
+         *    -Keep avg, stddev; update when future->get() is called
+         * 3) Prefetch promotion rate
+         *    - Percentage of prefetches that are actually fetched
          *    - All other things being equal, issue fewer prefetches
          *      if this percentage is low 
          *    - This and hit rate are the utility of the cache.
+         *    - How to track this:
+         *      - Keep as stable EWMA (init 1.0)
+         *        - Biases towards more prefetches
+         *      - Start per-prefetch timer when prefetch() is called
+         *      - Update rate if future->get() is called
+         *      - Consider a prefetch not promoted after time greater
+         *        than (avg prefetch->fetch delay + stddev) has passed
          * 
          * 
          * ---------------
