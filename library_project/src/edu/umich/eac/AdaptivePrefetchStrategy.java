@@ -2,37 +2,37 @@ package edu.umich.eac;
 
 import java.util.Date;
 import java.util.PriorityQueue;
-import java.util.Timer;
-import java.util.TimerTask;
+
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
 
 import edu.umich.eac.PrefetchStrategy;
 import edu.umich.eac.FetchFuture;
 
 class AdaptivePrefetchStrategy extends PrefetchStrategy {
-    class PrefetchTask extends TimerTask implements Comparable<PrefetchTask> {
+    class PrefetchTask implements Comparable<PrefetchTask> {
         private Date scheduledTime;
         private FetchFuture<?> prefetch;
         
         /** 
          * Schedule the prefetch for this many milliseconds in the future. 
          */
-        PrefetchTask(FetchFuture<?> pf, int millis) {
+        PrefetchTask(FetchFuture<?> pf) {
             prefetch = pf;
-            schedule(millis);
+            scheduledTime = new Date();
         }
         public void run() {
             prefetch.addToPrefetchQueue();
-        }
-        
-        void schedule(int millis) {
-            scheduledTime = new Date(System.currentTimeMillis() + millis);
         }
 
         public int compareTo(PrefetchTask another) {
             return scheduledTime.compareTo(another.scheduledTime);
         }
     }
-    private Timer timer = new Timer();
+
     private PriorityQueue<PrefetchTask> deferredPrefetches = 
         new PriorityQueue<PrefetchTask>();
     
@@ -203,29 +203,19 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          * 
          */
         
+        // TODO: implement the version that we converge on.
+        
         if (shouldPrefetchNow() && enoughSupply()) {
             issuePrefetch(prefetch);
         } else if (shouldPrefetchNow() && !enoughSupply()) {
-            int millis = computeRescheduleTime();
-            rescheduleDecision(prefetch, millis);
+            deferDecision(prefetch);
         } else if (!shouldPrefetchNow() && enoughSupply()) {
-            prefetch.startAsync(false);
+            issuePrefetch(prefetch);
         } else {
-            int millis = computeRescheduleTime();
-            rescheduleDecision(prefetch, millis);
+            deferDecision(prefetch);
         }
     }
     
-    /**
-     * Compute the time in the future at which this prefetch decision
-     * should be reconsidered.
-     * @return amount of time in milliseconds.
-     */
-    private int computeRescheduleTime() {
-        // TODO: implement
-        return 1000;
-    }
-
     void issuePrefetch(FetchFuture<?> prefetch) {
         deferredPrefetches.remove(prefetch);
         prefetch.startAsync(false);
@@ -241,40 +231,42 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return (mGoalTime.getTime() - now.getTime()) / 1000.0;
     }
     
-    private double sampledEnergyUsage() {
-        /*
-        synchronized (mSampledEnergyUsage) {
-            return mSampledEnergyUsage;
-        }
-        */
-        return 0.0;
+    private synchronized double sampledEnergyUsage() {
+        return mSampledEnergyUsage;
     }
     
-    private double sampledDataUsage() {
-        /*
-        synchronized (mSampledDataUsage) {
-            return mSampledDataUsage;
-        }
-        */
-        return 0.0;
+    private synchronized double sampledDataUsage() {
+        return mSampledDataUsage;
     }
     
     private boolean enoughSupply() {
         // TODO: implement
-        /*
         int energySupply = mEnergyBudget - mEnergySpent;
         int dataSupply = mDataBudget - mDataSpent;
         int predictedEnergyDemand = (int) (sampledEnergyUsage() * timeUntilGoal());
         int predictedDataDemand = (int) (sampledDataUsage() * timeUntilGoal());
-        */
         
-        return true;
+        // Odyssey-style; fewer prefetches when supply is low
+        int energyBuffer = (int) (mEnergyBudget * 0.01 + energySupply * 0.05);
+        int dataBuffer = (int) (mDataBudget * 0.01 + dataSupply * 0.05);
+        
+        // TODO: refine?
+        boolean enoughEnergy = (energySupply > (predictedEnergyDemand + 
+                                                energyBuffer));
+        boolean wifiAvailable = false;
+        // TODO: check whether wifi is available
+        
+        boolean enoughData = true;
+        if (!wifiAvailable) {
+            enoughData = (dataSupply > (predictedDataDemand + 
+                                        dataBuffer));
+        }
+        
+        return enoughEnergy && enoughData;
     }
     
-    private void rescheduleDecision(FetchFuture<?> prefetch, 
-                                    int millisInFuture) {
-        PrefetchTask task = new PrefetchTask(prefetch, millisInFuture);
+    private void deferDecision(FetchFuture<?> prefetch) {
+        PrefetchTask task = new PrefetchTask(prefetch);
         deferredPrefetches.add(task);
-        timer.schedule(task, millisInFuture);
     }
 }
