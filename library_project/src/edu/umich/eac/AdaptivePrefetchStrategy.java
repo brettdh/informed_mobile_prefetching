@@ -113,8 +113,10 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *    -All other things being equal, issue more prefetches
          *     if hit rate is lower
          * 2) Prefetch->fetch delay
-         * 3) Whether I'm issuing prefetches too early / too late
-         * 4) Percentage of prefetches that are actually fetched
+         *    -Tells me whether I'm issuing prefetches too early / too late
+         *    -Goal: not too late, just a little early.  
+         *           Use feedback to make this settle.
+         * 3) Percentage of prefetches that are actually fetched
          *    - All other things being equal, issue fewer prefetches
          *      if this percentage is low 
          *    - This and hit rate are the utility of the cache.
