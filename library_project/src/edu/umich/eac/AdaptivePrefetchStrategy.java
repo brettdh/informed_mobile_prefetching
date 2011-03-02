@@ -1,18 +1,19 @@
 package edu.umich.eac;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Date;
 import java.util.PriorityQueue;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.net.ConnectivityManager;
+import android.util.Log;
 
 import edu.umich.eac.PrefetchStrategy;
 import edu.umich.eac.FetchFuture;
 
 class AdaptivePrefetchStrategy extends PrefetchStrategy {
+    private static final String TAG = AdaptivePrefetchStrategy.class.getName();
+    
     class PrefetchTask implements Comparable<PrefetchTask> {
         private Date scheduledTime;
         private FetchFuture<?> prefetch;
@@ -240,7 +241,6 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
     
     private boolean enoughSupply() {
-        // TODO: implement
         int energySupply = mEnergyBudget - mEnergySpent;
         int dataSupply = mDataBudget - mDataSpent;
         int predictedEnergyDemand = (int) (sampledEnergyUsage() * timeUntilGoal());
@@ -253,16 +253,48 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         // TODO: refine?
         boolean enoughEnergy = (energySupply > (predictedEnergyDemand + 
                                                 energyBuffer));
-        boolean wifiAvailable = false;
-        // TODO: check whether wifi is available
-        
+
         boolean enoughData = true;
-        if (!wifiAvailable) {
+        if (!isWifiAvailable()) {
             enoughData = (dataSupply > (predictedDataDemand + 
                                         dataBuffer));
         }
         
         return enoughEnergy && enoughData;
+    }
+
+    private boolean isWifiAvailable() {
+        String wifiDhcpStr = null;
+        String[] cmds = new String[2];
+        cmds[0] = "getprop";
+        cmds[1] = "dhcp.tiwlan0.result";
+        Process p = null;
+        try {
+            p = Runtime.getRuntime().exec(cmds);
+            InputStreamReader in = new InputStreamReader(p.getInputStream());
+            BufferedReader rdr = new BufferedReader(in);
+            String line = null;
+            while ((line = rdr.readLine()) != null) {
+                if (line.trim().length() > 0) {
+                    wifiDhcpStr = line;
+                    break;
+                }
+            }
+            rdr.close();
+        } catch (IOException e) {
+            if (p == null) {
+                Log.e(TAG, String.format("Error: failed to exec '%s %s'",
+                                         cmds[0], cmds[1]));
+            } else {
+                // ignore; wifi not available
+            }
+        }
+        
+        boolean wifiAvailable = false;
+        if (wifiDhcpStr != null) {
+            wifiAvailable = wifiDhcpStr.equals("ok");
+        }
+        return wifiAvailable;
     }
     
     private void deferDecision(FetchFuture<?> prefetch) {
