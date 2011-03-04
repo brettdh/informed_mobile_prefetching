@@ -12,7 +12,7 @@ import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
 
-import org.apache.commons.math.stat.descriptive.SynchronizedSummaryStatistics;
+import org.apache.commons.math.stat.descriptive.SummaryStatistics;
 
 import android.util.Log;
 
@@ -99,24 +99,53 @@ public class EnergyAdaptiveCache {
         }
     }
     
-    void remove(FetchFuture<?> fetchFuture, boolean wasCancelled) {
+    void remove(FetchFuture<?> fetchFuture) {
         prefetchCache.remove(fetchFuture);
     }
     
-    SynchronizedSummaryStatistics mAvgPromotionDelay = 
-        new SynchronizedSummaryStatistics();
+    // cache stats; access must be synchronized(this)
     
-    <V> void updateCacheStats(FetchFuture<V> fetchFuture,
-                              boolean wasCancelled) {
-        // prefetch->fetch delay
-        if (!wasCancelled) {
-            Date now = new Date();
-            long promotion_delay = now.getTime() - fetchFuture.timeCreated.getTime();
-            mAvgPromotionDelay.addValue(promotion_delay);
+    // promotion delay is in milliseconds
+    private final long mPromotionDelayInit = 5000;
+    private SummaryStatistics mPromotionDelay = new SummaryStatistics();
+    private int mNumPromotions = 0;
+    private int mNumPrefetches = 0;
+    private double mPromotionRateEWMA = 1.0;
+    private final double alpha = 0.9;
+    
+    <V> void updateStats(FetchFuture<V> fetchFuture,
+                         boolean wasCancelled) {
+        synchronized(this) {
+            if (!wasCancelled) {
+                // prefetch->fetch delay
+                long promotion_delay = fetchFuture.millisSinceCreated();
+                mPromotionDelay.addValue(promotion_delay);
+
+                // promotion rate
+                mNumPromotions++;
+            }
+            mNumPrefetches++;
+            updatePromotionRate(mNumPrefetches / mNumPromotions);
         }
-        
-        // promotion rate
-        
+    }
+    
+    private synchronized void updatePromotionRate(double sample) {
+        mPromotionRateEWMA = 
+            (alpha * mPromotionRateEWMA) + ((1 - alpha) * sample);
+    }
+    
+    synchronized double getPromotionRate() {
+        return mPromotionRateEWMA;
+    }
+    
+    synchronized double[] getPromotionDelay() {
+        if (mPromotionDelay.getN() == 0) {
+            return null;
+        }
+        double avgDelay = mPromotionDelay.getMean();
+        double stddevDelay = mPromotionDelay.getStandardDeviation(); 
+        double ret[] = {avgDelay, stddevDelay};
+        return ret;
     }
     
     // Bound on the number of in-flight prefetches, similar to before.
@@ -140,6 +169,10 @@ public class EnergyAdaptiveCache {
             new TreeSet<FetchFuture<?> >()
         );
         
+        // fake value to start so that prefetches aren't 
+        //  immediately considered not promoted 
+        mPromotionDelay.addValue(mPromotionDelayInit);
+        
         strategy = PrefetchStrategy.create(strategyType, goalTime, 
                                            energyBudget, dataBudget);
         
@@ -148,7 +181,7 @@ public class EnergyAdaptiveCache {
     }
     
     private PrefetchThread prefetchThread;
-    private PrefetchStrategy strategy;
+    PrefetchStrategy strategy;
     
     private class PrefetchThread extends Thread {
         public void run() {

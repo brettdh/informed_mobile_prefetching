@@ -1,6 +1,8 @@
 package edu.umich.eac;
 
 import java.util.Date;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -15,7 +17,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     Future<V> realFuture;
     CallableWrapperFetcher fetcher;
     boolean cancelled;
-    Date timeCreated;
+    private Date timeCreated;
     private EnergyAdaptiveCache cache;
     EnergyAdaptiveCache getCache() {
         return cache;
@@ -38,19 +40,59 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
     }
     
+    private class UpdateStatsTask extends TimerTask {
+        private FetchFuture<?> mFuture;
+        UpdateStatsTask(FetchFuture<?> future) {
+            mFuture = future;
+        }
+        
+        @Override
+        public void run() {
+            // if this task gets run, the prefetch is considered not promoted.
+            mFuture.cache.updateStats(mFuture, true);
+            synchronized(mFuture) {
+                mFuture.updateStatsTask = null;
+            }
+        }
+    }
+    private static Timer timer = new Timer();
+    private UpdateStatsTask updateStatsTask;
+    
+    private synchronized void cancelPromotionTimeout() {
+        if (updateStatsTask != null) {
+            updateStatsTask.cancel();
+            updateStatsTask = null;
+        }
+    }
+    
     FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_) {
         realFuture = null;
         fetcher = new CallableWrapperFetcher(fetcher_);
         cancelled = false;
         cache = cache_;
         timeCreated = new Date();
+        
+        updateStatsTask = new UpdateStatsTask(this);
+        double[] promotionDelay = cache.getPromotionDelay();
+        
+        // avg + stddev
+        long timeout = (long)(promotionDelay[0] + promotionDelay[1]);
+        Date expiration = new Date((long) (timeCreated.getTime() + timeout));
+        timer.schedule(updateStatsTask, expiration);
+    }
+    
+    long millisSinceCreated() {
+        return new Date().getTime() - timeCreated.getTime();
     }
     
     public boolean cancel(boolean mayInterruptIfRunning) {
         if (cancelled) {
             return true;
         }
-        cache.remove(this, true);
+        cancelPromotionTimeout();
+        cache.updateStats(this, true);
+        cache.remove(this);
+        cache.strategy.onPrefetchCancelled(this);
         
         Future<V> f = getFutureRef();
         if (f == null) {
@@ -61,7 +103,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
             return cancelled;
         }
     }
-    
+
     private synchronized void establishFuture(boolean demand)
         throws CancellationException {
         if (cancelled) throw new CancellationException();
@@ -94,20 +136,22 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     
     public V get() throws InterruptedException, ExecutionException, 
                           CancellationException {
-
+        cancelPromotionTimeout();
+        cache.updateStats(this, false);
         establishFuture(true);
         V result = realFuture.get();
-        cache.remove(this, false);
+        cache.remove(this);
         return result;
     }
     
     public V get(long timeout, TimeUnit unit) 
         throws InterruptedException, ExecutionException, 
                TimeoutException, CancellationException {
-            
+        cancelPromotionTimeout();
+        cache.updateStats(this, false);
         establishFuture(true);
         V result = realFuture.get(timeout, unit);
-        cache.remove(this, false);
+        cache.remove(this);
         return result;
     }
     

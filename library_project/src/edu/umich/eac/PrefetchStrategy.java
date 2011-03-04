@@ -9,7 +9,8 @@ import edu.umich.eac.ConservativePrefetchStrategy;
 
 abstract class PrefetchStrategy {
     public abstract void handlePrefetch(FetchFuture<?> prefetch);
-
+    public void onPrefetchCancelled(FetchFuture<?> prefetch) {}
+    
     /** 
      * Initialize the object with the strategy parameters.
      * Subclasses should override this to get the info.
