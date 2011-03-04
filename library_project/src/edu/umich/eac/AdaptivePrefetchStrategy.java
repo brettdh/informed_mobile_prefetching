@@ -4,7 +4,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Date;
-import java.util.PriorityQueue;
+import java.util.Random;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import android.util.Log;
 
@@ -34,8 +35,8 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
 
-    private PriorityQueue<PrefetchTask> deferredPrefetches = 
-        new PriorityQueue<PrefetchTask>();
+    private PriorityBlockingQueue<PrefetchTask> deferredPrefetches = 
+        new PriorityBlockingQueue<PrefetchTask>();
     
     private Date mStartTime;
     private Date mGoalTime;
@@ -64,6 +65,14 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         // TODO: start monitoring thread?
     }
     
+    @Override
+    public void onPrefetchCancelled(FetchFuture<?> prefetch) {
+        deferredPrefetches.remove(prefetch);
+    }
+    
+    // deterministic for testing
+    private Random prng = new Random(424242);
+
     public void handlePrefetch(FetchFuture<?> prefetch) {
         /* Possible actions to do with a prefetch:
          * a) Issue it now
@@ -75,13 +84,13 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
          * #  that are likely to be promoted
          * with probability(1.0 - prefetch promotion rate):
          *   if time_since_app_hinted_prefetch < avg prefetch->fetch delay:
-         *   defer
+         *     defer
          * 
          * if I have enough supply:
          *   if conditions will get better:
          *     lookup average prefetch->fetch delay
          *     window = predict(time until conditions get better)
-         *     if average delay is less than time until conditions get better:
+         *     if average delay is less than window:
          *       issue it now
          *     else:
          *       defer
@@ -206,25 +215,72 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         
         // TODO: implement the version that we converge on.
         
-        if (shouldPrefetchNow() && enoughSupply()) {
-            issuePrefetch(prefetch);
-        } else if (shouldPrefetchNow() && !enoughSupply()) {
-            deferDecision(prefetch);
-        } else if (!shouldPrefetchNow() && enoughSupply()) {
-            issuePrefetch(prefetch);
+        EnergyAdaptiveCache cache = prefetch.getCache();
+        double probability = 1.0 - cache.getPromotionRate();
+        double decider = prng.nextDouble();
+        if (decider < probability) {
+            long avgPromotionDelay = (long) cache.getPromotionDelay()[0];
+            if (prefetch.millisSinceCreated() < avgPromotionDelay) {
+                deferDecision(prefetch);
+            }
+        }
+        
+        Prediction predictedChange = predictConditionsChange();
+        if (enoughSupply()) {
+            if (predictedChange == Prediction.BETTER) {
+                long delay = (long) cache.getPromotionDelay()[0];
+                
+                // if prefetch was deferred, discount this avg delay by
+                // how much time this prefetch has been waiting
+                delay -= prefetch.millisSinceCreated();
+                
+                long timeUntilImprove = predictConditionsChangeTime();
+                if (delay < timeUntilImprove) {
+                    issuePrefetch(prefetch);
+                } else {
+                    deferDecision(prefetch);
+                }
+            } else { // conditions will persist or get worse
+                issuePrefetch(prefetch);
+            }
         } else {
-            deferDecision(prefetch);
+            if (predictedChange == Prediction.WORSE) {
+                if (cheaperToIssueNow(prefetch)) {
+                    issuePrefetch(prefetch);
+                } else {
+                    deferDecision(prefetch);
+                }
+            } else {
+                deferDecision(prefetch);
+            }
         }
     }
     
-    void issuePrefetch(FetchFuture<?> prefetch) {
-        deferredPrefetches.remove(prefetch);
-        prefetch.startAsync(false);
+    enum Prediction {
+        NO_CHANGE, BETTER, WORSE
     }
     
-    private boolean shouldPrefetchNow() {
+    private Prediction predictConditionsChange() {
         // TODO: implement
-        return true;
+        return Prediction.NO_CHANGE;
+    }
+    
+    private long predictConditionsChangeTime() {
+        // TODO: implement
+        return 0;
+    }
+    
+    private boolean cheaperToIssueNow(FetchFuture<?> prefetch) {
+        /* calculate shortfall = (predicted_demand - supply)
+         *     calculate cost(send_it_in_worse_conditions) - cost(send_it_now)
+         *               = savings(send_it_now)
+         *     if savings(send_it_now) > shortfall:
+         *       issue it now
+         *     else:
+         *       defer
+         */
+        // TODO: implement
+        return false;
     }
     
     private double timeUntilGoal() {
@@ -297,6 +353,11 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return wifiAvailable;
     }
     
+    void issuePrefetch(FetchFuture<?> prefetch) {
+        deferredPrefetches.remove(prefetch);
+        prefetch.startAsync(false);
+    }
+
     private void deferDecision(FetchFuture<?> prefetch) {
         PrefetchTask task = new PrefetchTask(prefetch);
         deferredPrefetches.add(task);
