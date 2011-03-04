@@ -125,7 +125,7 @@ public class EnergyAdaptiveCache {
                 mNumPromotions++;
             }
             mNumPrefetches++;
-            updatePromotionRate(mNumPrefetches / mNumPromotions);
+            updatePromotionRate(mNumPromotions / mNumPrefetches);
         }
     }
     
