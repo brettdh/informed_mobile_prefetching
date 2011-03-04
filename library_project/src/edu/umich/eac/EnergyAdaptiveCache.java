@@ -12,6 +12,8 @@ import java.util.Date;
 import java.util.Set;
 import java.util.TreeSet;
 
+import org.apache.commons.math.stat.descriptive.SynchronizedSummaryStatistics;
+
 import android.util.Log;
 
 import edu.umich.eac.FetchFuture;
@@ -97,16 +99,25 @@ public class EnergyAdaptiveCache {
         }
     }
     
-    void remove(FetchFuture<?> fetchFuture) {
-        evaluatePrefetchDecision(fetchFuture);
+    void remove(FetchFuture<?> fetchFuture, boolean wasCancelled) {
         prefetchCache.remove(fetchFuture);
     }
     
-    private <V> void evaluatePrefetchDecision(FetchFuture<V> fetchFuture) {
-        // TODO: estimate whether I "made a mistake" with this fetch
-        //       e.g. too early, too late
-    }
+    SynchronizedSummaryStatistics mAvgPromotionDelay = 
+        new SynchronizedSummaryStatistics();
     
+    <V> void updateCacheStats(FetchFuture<V> fetchFuture,
+                              boolean wasCancelled) {
+        // prefetch->fetch delay
+        if (!wasCancelled) {
+            Date now = new Date();
+            long promotion_delay = now.getTime() - fetchFuture.timeCreated.getTime();
+            mAvgPromotionDelay.addValue(promotion_delay);
+        }
+        
+        // promotion rate
+        
+    }
     
     // Bound on the number of in-flight prefetches, similar to before.
     // XXX: does this need to be configurable?
@@ -117,7 +128,7 @@ public class EnergyAdaptiveCache {
         this(strategyType, new Date(), 0, 0);
     }
     public EnergyAdaptiveCache(PrefetchStrategyType strategyType,
-                               Date goalTime, 
+                               Date goalTime,
                                int energyBudget,
                                int dataBudget) {
         Log.d(TAG, "Created a new EnergyAdaptiveCache");

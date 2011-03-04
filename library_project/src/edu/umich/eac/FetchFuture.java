@@ -1,5 +1,6 @@
 package edu.umich.eac;
 
+import java.util.Date;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -14,6 +15,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     Future<V> realFuture;
     CallableWrapperFetcher fetcher;
     boolean cancelled;
+    Date timeCreated;
     private EnergyAdaptiveCache cache;
     EnergyAdaptiveCache getCache() {
         return cache;
@@ -41,13 +43,14 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         fetcher = new CallableWrapperFetcher(fetcher_);
         cancelled = false;
         cache = cache_;
+        timeCreated = new Date();
     }
     
     public boolean cancel(boolean mayInterruptIfRunning) {
         if (cancelled) {
             return true;
         }
-        cache.remove(this);
+        cache.remove(this, true);
         
         Future<V> f = getFutureRef();
         if (f == null) {
@@ -94,7 +97,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
 
         establishFuture(true);
         V result = realFuture.get();
-        cache.remove(this);
+        cache.remove(this, false);
         return result;
     }
     
@@ -104,7 +107,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
             
         establishFuture(true);
         V result = realFuture.get(timeout, unit);
-        cache.remove(this);
+        cache.remove(this, false);
         return result;
     }
     
