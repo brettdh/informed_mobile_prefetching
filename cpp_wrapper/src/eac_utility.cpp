@@ -30,7 +30,7 @@ getJNIEnv(JavaVM *jvm)
 }
 
 #ifdef ANDROID
-#include <cutils/logd.h>
+#include <android/log.h>
 #define VFPRINTF_FUNCTION(file, fmt, ap)             \
     do {                                             \
         __android_log_vprint(ANDROID_LOG_INFO,       \

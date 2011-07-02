@@ -1,6 +1,7 @@
 #include "Future.h"
 #include "eac_utility.h"
 #include "jclasses.h"
+#include <stdlib.h>
 #include <stdexcept>
 #include <sstream>
 using std::ostringstream;
