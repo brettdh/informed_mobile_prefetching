@@ -11,6 +11,8 @@ import android.util.Log;
 
 import edu.umich.eac.PrefetchStrategy;
 import edu.umich.eac.FetchFuture;
+import edu.umich.eac.WifiBandwidthPredictor.ConditionChange;
+import edu.umich.eac.WifiBandwidthPredictor.Prediction;
 
 class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private static final String TAG = AdaptivePrefetchStrategy.class.getName();
@@ -216,26 +218,40 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         // TODO: implement the version that we converge on.
         
         EnergyAdaptiveCache cache = prefetch.getCache();
+        double[] promotionDelay = cache.getPromotionDelay();
+        
         double probability = 1.0 - cache.getPromotionRate();
         double decider = prng.nextDouble();
         if (decider < probability) {
-            long avgPromotionDelay = (long) cache.getPromotionDelay()[0];
-            if (prefetch.millisSinceCreated() < avgPromotionDelay) {
-                deferDecision(prefetch);
+            if (promotionDelay != null) {
+                // until I get some promotion delay stats,
+                //  bias towards issuing more prefetches
+                //  (i.e. less deferring)
+                long avgPromotionDelay = (long) promotionDelay[0];
+                if (prefetch.millisSinceCreated() < avgPromotionDelay) {
+                    deferDecision(prefetch);
+                }
             }
         }
         
-        Prediction predictedChange = predictConditionsChange();
+        Prediction prediction = wifiPredictor.predictConditionsChange();
         if (enoughSupply()) {
-            if (predictedChange == Prediction.BETTER) {
-                long delay = (long) cache.getPromotionDelay()[0];
+            if (prediction.change == ConditionChange.BETTER) {
+                long delay;
+                if (promotionDelay != null) {
+                    delay = (long) promotionDelay[0];
+                } else {
+                    // as above, bias towards more prefetches
+                    //  until I get some stats
+                    delay = 0;
+                }
                 
                 // if prefetch was deferred, discount this avg delay by
                 // how much time this prefetch has been waiting
                 delay -= prefetch.millisSinceCreated();
+                // if this is negative, it means I might have waited too long
                 
-                long timeUntilImprove = predictConditionsChangeTime();
-                if (delay < timeUntilImprove) {
+                if (delay < prediction.timeInFuture) {
                     issuePrefetch(prefetch);
                 } else {
                     deferDecision(prefetch);
@@ -243,9 +259,9 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
             } else { // conditions will persist or get worse
                 issuePrefetch(prefetch);
             }
-        } else {
-            if (predictedChange == Prediction.WORSE) {
-                if (cheaperToIssueNow(prefetch)) {
+        } else { // !enoughSupply()
+            if (prediction.change == ConditionChange.WORSE) {
+                if (cheaperToIssueNow(prefetch, prediction)) {
                     issuePrefetch(prefetch);
                 } else {
                     deferDecision(prefetch);
@@ -256,21 +272,10 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
     
-    enum Prediction {
-        NO_CHANGE, BETTER, WORSE
-    }
+    private WifiBandwidthPredictor wifiPredictor = new WifiBandwidthPredictor();
     
-    private Prediction predictConditionsChange() {
-        // TODO: implement
-        return Prediction.NO_CHANGE;
-    }
-    
-    private long predictConditionsChangeTime() {
-        // TODO: implement
-        return 0;
-    }
-    
-    private boolean cheaperToIssueNow(FetchFuture<?> prefetch) {
+    private boolean cheaperToIssueNow(FetchFuture<?> prefetch, 
+                                      Prediction prediction) {
         /* calculate shortfall = (predicted_demand - supply)
          *     calculate cost(send_it_in_worse_conditions) - cost(send_it_now)
          *               = savings(send_it_now)
