@@ -14,6 +14,32 @@ import edu.umich.eac.FetchFuture;
 import edu.umich.eac.WifiBandwidthPredictor.ConditionChange;
 import edu.umich.eac.WifiBandwidthPredictor.Prediction;
 
+/* Missing bits:
+ * 1) How to estimate energy supply over a goal period
+ *    - It's (energy_goal - energy_spending)
+ * 2) Energy goal is given when cache is created.
+ *    - ...for eval purposes. In a production system it would be based on 
+ *      remaining battery capacity.
+ * 3) ...so, how to estimate energy spending?
+ *    - First, what's the trivial version of this?
+ *      - Just leave it at zero. This means the only factor will be 
+ *        the promotion rate of the cache.
+ *    - Next: continuously sample current and voltage and calculate 
+ *      approximate energy consumed.
+ * 4) How to re-evaluate prefetch decisions later
+ *    - Have a thread that monitors resource changes
+ *      - It can also get woken up whenever a prefetch is promoted
+ *    - That thread will also call the issuePrefetch or deferDecision methods.
+ * 5) How to make IntNW do the right things based on my prefetch decisions
+ *    - "Energy-conscious" label
+ *      - Says "send this on the interface that will use the least energy to do so."
+ *    - "Cost-conscious" label
+ *      - Says "send this on the interface that has the least cost or least chance
+ *        of incurring a cost."  i.e. wifi, not 3G
+ *    - These only make sense for BG traffic, since FG traffic should always be sent
+ *      on the network that can get it done sooner. 
+ * 
+ */
 class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private static final String TAG = AdaptivePrefetchStrategy.class.getName();
     
@@ -49,8 +75,8 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private int mDataSpent;
     
     // these are sampled rates of spending.
-    private double mSampledEnergyUsage; // Joules/sec (Watts)
-    private double mSampledDataUsage;   // bytes/sec
+    private double mSampledEnergyUsageRate; // Joules/sec (Watts)
+    private double mSampledDataUsageRate;   // bytes/sec
     
     @Override
     public void setup(Date goalTime, int energyBudget, int dataBudget) {
@@ -61,8 +87,8 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         mEnergySpent = 0;
         mDataSpent = 0;
         
-        mSampledEnergyUsage = 0;
-        mSampledDataUsage = 0;
+        mSampledEnergyUsageRate = 0;
+        mSampledDataUsageRate = 0;
         
         // TODO: start monitoring thread?
     }
@@ -293,19 +319,19 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return (mGoalTime.getTime() - now.getTime()) / 1000.0;
     }
     
-    private synchronized double sampledEnergyUsage() {
-        return mSampledEnergyUsage;
+    private synchronized double energyUsageRate() {
+        return mSampledEnergyUsageRate;
     }
     
-    private synchronized double sampledDataUsage() {
-        return mSampledDataUsage;
+    private synchronized double dataUsageRate() {
+        return mSampledDataUsageRate;
     }
     
     private boolean enoughSupply() {
         int energySupply = mEnergyBudget - mEnergySpent;
         int dataSupply = mDataBudget - mDataSpent;
-        int predictedEnergyDemand = (int) (sampledEnergyUsage() * timeUntilGoal());
-        int predictedDataDemand = (int) (sampledDataUsage() * timeUntilGoal());
+        int predictedEnergyDemand = (int) (energyUsageRate() * timeUntilGoal());
+        int predictedDataDemand = (int) (dataUsageRate() * timeUntilGoal());
         
         // Odyssey-style; fewer prefetches when supply is low
         int energyBuffer = (int) (mEnergyBudget * 0.01 + energySupply * 0.05);
@@ -328,7 +354,7 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         String wifiDhcpStr = null;
         String[] cmds = new String[2];
         cmds[0] = "getprop";
-        cmds[1] = "dhcp.tiwlan0.result";
+        cmds[1] = "dhcp.eth0.result";
         Process p = null;
         try {
             p = Runtime.getRuntime().exec(cmds);

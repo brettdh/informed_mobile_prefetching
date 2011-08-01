@@ -40,6 +40,10 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
     }
     
+    public void addLabels(int labels) {
+        fetcher.labels |= labels;
+    }
+    
     private class UpdateStatsTask extends TimerTask {
         private FetchFuture<?> mFuture;
         UpdateStatsTask(FetchFuture<?> future) {
