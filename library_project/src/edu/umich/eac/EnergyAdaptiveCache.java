@@ -138,6 +138,10 @@ public class EnergyAdaptiveCache {
         return mPromotionRateEWMA;
     }
     
+    /**
+     * @return The [avg, stdev] promotion delay of this cache, or null if 
+     *         there haven't been any promotions yet.
+     */
     synchronized double[] getPromotionDelay() {
         if (mPromotionDelay.getN() == 0) {
             return null;

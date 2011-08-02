@@ -3,7 +3,9 @@ package edu.umich.eac;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.PriorityBlockingQueue;
 
@@ -26,6 +28,8 @@ import edu.umich.eac.WifiBandwidthPredictor.Prediction;
  *        the promotion rate of the cache.
  *    - Next: periodically sample current and voltage from sysfs and calculate 
  *      approximate energy consumed.
+ *      - Problem: sysfs current measurement is useless when the power monitor
+ *        is powering the phone, since no current goes through the battery.
  * 4) How to re-evaluate prefetch decisions later
  *    - Have a thread that monitors resource changes
  *      - It can also get woken up whenever a prefetch is promoted
@@ -42,6 +46,9 @@ import edu.umich.eac.WifiBandwidthPredictor.Prediction;
  */
 class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private static final String TAG = AdaptivePrefetchStrategy.class.getName();
+
+    // TODO: determine this from Android APIs
+    private static final String CELLULAR_IFNAME = "rmnet0";
     
     class PrefetchTask implements Comparable<PrefetchTask> {
         private Date scheduledTime;
@@ -54,7 +61,7 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
             prefetch = pf;
             scheduledTime = new Date();
         }
-        public void run() {
+        public void reevaluate() {
             prefetch.addToPrefetchQueue();
         }
 
@@ -72,11 +79,9 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private int mDataBudget;
     
     private int mEnergySpent;
-    private int mDataSpent;
+    private ProcNetworkStats mDataSpent;
     
-    // these are sampled rates of spending.
-    private double mSampledEnergyUsageRate; // Joules/sec (Watts)
-    private double mSampledDataUsageRate;   // bytes/sec
+    private MonitorThread monitorThread;
     
     @Override
     public void setup(Date goalTime, int energyBudget, int dataBudget) {
@@ -85,12 +90,37 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         mEnergyBudget = energyBudget;
         mDataBudget = dataBudget;
         mEnergySpent = 0;
-        mDataSpent = 0;
+        mDataSpent = new ProcNetworkStats(CELLULAR_IFNAME);
         
-        mSampledEnergyUsageRate = 0;
-        mSampledDataUsageRate = 0;
-        
-        // TODO: start monitoring thread?
+        monitorThread = new MonitorThread();
+        monitorThread.start();
+    }
+
+    class MonitorThread extends Thread {
+        @Override
+        public void run() {
+            final int SAMPLE_PERIOD_MS = 200;
+            while (true) {
+                // TODO: update energy stats
+                
+                mDataSpent.updateStats();
+                
+                List<PrefetchTask> prefetches = new ArrayList<PrefetchTask>();
+                while (!deferredPrefetches.isEmpty()) {
+                    prefetches.add(deferredPrefetches.remove());
+                }
+                
+                for (PrefetchTask task : prefetches) {
+                    task.reevaluate();
+                }
+                
+                try {
+                    Thread.sleep(SAMPLE_PERIOD_MS);
+                } catch (InterruptedException e) {
+                    break;
+                }
+            }
+        }
     }
     
     @Override
@@ -319,17 +349,22 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return (mGoalTime.getTime() - now.getTime()) / 1000.0;
     }
     
+    private double timeSinceStart() {
+        Date now = new Date();
+        return (now.getTime() - mStartTime.getTime()) / 1000.0;
+    }
+    
     private synchronized double energyUsageRate() {
-        return mSampledEnergyUsageRate;
+        return mEnergySpent / timeSinceStart();
     }
     
     private synchronized double dataUsageRate() {
-        return mSampledDataUsageRate;
+        return mDataSpent.getTotalBytes() / timeSinceStart();
     }
     
     private boolean enoughSupply() {
-        int energySupply = mEnergyBudget - mEnergySpent;
-        int dataSupply = mDataBudget - mDataSpent;
+        int energySupply = Math.max(0, mEnergyBudget - mEnergySpent);
+        long dataSupply = Math.max(0, mDataBudget - mDataSpent.getTotalBytes());
         int predictedEnergyDemand = (int) (energyUsageRate() * timeUntilGoal());
         int predictedDataDemand = (int) (dataUsageRate() * timeUntilGoal());
         
@@ -386,6 +421,8 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
     
     void issuePrefetch(FetchFuture<?> prefetch) {
         deferredPrefetches.remove(prefetch);
+        prefetch.addLabels(IntNWLabels.MIN_ENERGY);
+        prefetch.addLabels(IntNWLabels.MIN_COST);
         prefetch.startAsync(false);
     }
 
