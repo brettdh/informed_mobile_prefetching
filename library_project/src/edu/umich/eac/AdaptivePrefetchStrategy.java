@@ -24,7 +24,7 @@ import edu.umich.eac.WifiBandwidthPredictor.Prediction;
  *    - First, what's the trivial version of this?
  *      - Just leave it at zero. This means the only factor will be 
  *        the promotion rate of the cache.
- *    - Next: continuously sample current and voltage and calculate 
+ *    - Next: periodically sample current and voltage from sysfs and calculate 
  *      approximate energy consumed.
  * 4) How to re-evaluate prefetch decisions later
  *    - Have a thread that monitors resource changes
