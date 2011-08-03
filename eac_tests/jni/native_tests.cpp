@@ -6,6 +6,7 @@
 #include <EnergyAdaptiveCache.h>
 #include <JNICacheFetcher.h>
 #include <Future.h>
+#include <eac_utility.h>
 #include "utility.h"
 
 void doAssertions(JNIEnv *jenv, jobject jobj, bool futureNotDoneYet,
@@ -70,9 +71,13 @@ Java_edu_umich_eac_tests_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj,
     bool futureDone = f->isDone();
     bool cancelled = f->isCancelled();
 
-    // catch AssertionException not necessary here; doesn't use jniunit::asserts
-    doAssertions(jenv, jobj, futureNotDoneYet, FakeFetcher::msg, str, 
-                 futureDone, cancelled);
+    try {
+        // catch AssertionException not necessary here; doesn't use jniunit::asserts
+        doAssertions(jenv, jobj, futureNotDoneYet, FakeFetcher::msg, str, 
+                     futureDone, cancelled);
+    } catch (std::runtime_error& e) {
+        eac_dprintf("Fatal error in testWithDelay: %s\n", e.what());
+    }
 }
 
 

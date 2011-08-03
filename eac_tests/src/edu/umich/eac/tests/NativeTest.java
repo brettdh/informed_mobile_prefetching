@@ -16,6 +16,7 @@ public class NativeTest extends InstrumentationTestCase {
     private native void testWithDelay(long delaySecs);
 
     static {
+        System.loadLibrary("eac_native");
         System.loadLibrary("eac_native_tests");
     }
 

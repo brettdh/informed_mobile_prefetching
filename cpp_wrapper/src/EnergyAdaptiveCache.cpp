@@ -29,18 +29,18 @@ getEnumValue(JNIEnv *jenv, enum PrefetchStrategyType type)
 {
     jclass clazz = JClasses::PrefetchStrategyType;
     if (!clazz || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find PrefetchStrategyType class");
+        fatal_error("Can't find PrefetchStrategyType class");
     }
     jfieldID fid = jenv->GetStaticFieldID(
         clazz, enumNames[type], "Ledu/umich/eac/PrefetchStrategyType;"
     );
                                           
     if (!fid || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find PrefetchStrategyType constant");
+        fatal_error("Can't find PrefetchStrategyType constant");
     }
     jobject jobj = jenv->GetStaticObjectField(clazz, fid);
     if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't get PrefetchStrategyType constant");
+        fatal_error("Can't get PrefetchStrategyType constant");
     }
     return jobj;
 }
@@ -55,7 +55,7 @@ EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv,
     vm = NULL;
     jint rc = jenv->GetJavaVM(&vm);
     if (rc != 0) {
-        throw std::runtime_error("Can't get the Java VM");
+        fatal_error("Can't get the Java VM");
     }
     
     JClasses::init(jenv);
@@ -63,29 +63,29 @@ EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv,
     cacheClazz = JClasses::EnergyAdaptiveCache;
     prefetchMID = jenv->GetMethodID(cacheClazz, "prefetch", prefetchMethodSig);
     if (!prefetchMID || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find prefetch method");
+        fatal_error("Can't find prefetch method");
     }
     prefetchNowMID = jenv->GetMethodID(cacheClazz, "prefetchNow", 
                                        prefetchMethodSig);
     if (!prefetchNowMID || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find prefetchNow method");
+        fatal_error("Can't find prefetchNow method");
     }
     fetchMID = jenv->GetMethodID(cacheClazz, "fetch", 
                                  prefetchMethodSig);
     if (!fetchMID || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find fetch method");
+        fatal_error("Can't find fetch method");
     }
     jmethodID ctor = jenv->GetMethodID(
         cacheClazz, "<init>", "(Ledu/umich/eac/PrefetchStrategyType;)V"
     );
     if (!ctor || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find EAC constructor");
+        fatal_error("Can't find EAC constructor");
     }
     jobject prefetchType = getEnumValue(jenv, type);
     jobject local = jenv->NewObject(cacheClazz, ctor, prefetchType);
     if (!local || JAVA_EXCEPTION_OCCURRED(jenv) ||
         !(realCacheObj = jenv->NewGlobalRef(local))) {
-        throw std::runtime_error("Can't create EnergyAdaptiveCache "
+        fatal_error("Can't create EnergyAdaptiveCache "
                                  "java object");
     }
 }
@@ -135,7 +135,7 @@ EnergyAdaptiveCache::prefetch(JNICacheFetcherPtr fetcher,
     jclass clazz = JClasses::JNICacheFetcher;
     jmethodID ctor = jenv->GetMethodID(clazz, "<init>", "(IZ)V");
     if (!ctor || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find JNICacheFetcher ctor");
+        fatal_error("Can't find JNICacheFetcher ctor");
     }
     
     // create new shared_ptr, owned by the java object.
@@ -150,7 +150,7 @@ EnergyAdaptiveCache::prefetch(JNICacheFetcherPtr fetcher,
         //  and this smart ptr would be leaked (also preventing the real data
         //  from ever being freed).  So clean it up.
         delete newSharedPtr;
-        throw std::runtime_error("Can't create JNICacheFetcher "
+        fatal_error("Can't create JNICacheFetcher "
                                  "java object");
     }
     
@@ -170,7 +170,7 @@ EnergyAdaptiveCache::prefetch(JNICacheFetcherPtr fetcher,
     jobject future_jobj;
     if (!local || JAVA_EXCEPTION_OCCURRED(jenv) ||
         !(future_jobj = jenv->NewGlobalRef(local))) {
-        throw std::runtime_error("Can't create Future java object");
+        fatal_error("Can't create Future java object");
     }
     
     // Wrap the returned Future in my proxy class

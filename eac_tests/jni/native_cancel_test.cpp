@@ -57,6 +57,8 @@ CDECL JNIEXPORT void JNICALL
 Java_edu_umich_eac_tests_NativeCancelTest_tearDown(
     JNIEnv *jenv, jobject jobj)
 {
+    eac_dprintf("In NativeCancelTest::tearDown");
+
     delete future;
     fetcher.reset();
     delete cache;
@@ -85,24 +87,24 @@ Java_edu_umich_eac_tests_NativeCancelTest_testCancel(
     JNIEnv *jenv, jobject jobj)
 {
     try {
+        bool ret = future->cancel(true);
+        assertTrue(jenv, "cancel succeeds", ret);
+        assertTrue(jenv, "Future is cancelled", future->isCancelled());
+        assertTrue(jenv, "Future is not done after cancel", future->isDone());
         try {
-            bool ret = future->cancel(true);
-            assertTrue(jenv, "cancel succeeds", ret);
-            assertTrue(jenv, "Future is cancelled", future->isCancelled());
-            assertTrue(jenv, "Future is not done after cancel", future->isDone());
-            try {
-                void *nothing = future->get(1, SECONDS);
-                fail(jenv, "Cancelled Future.get() should throw CancellationException");
-            } catch (Future::TimeoutException& e) {
-                fail(jenv, "Cancelled Future.get() should fail outright, not time out");
-            } catch (Future::CancellationException& e) {
-                // success
-            }
-        } catch (jniunit::AssertionException& e) {
-            // test failed; junit will detect it
+            void *nothing = future->get(1, SECONDS);
+            fail(jenv, "Cancelled Future.get() should throw CancellationException");
+        } catch (Future::TimeoutException& e) {
+            fail(jenv, "Cancelled Future.get() should fail outright, not time out");
+        } catch (Future::CancellationException& e) {
+            // success
+            assertTrue(jenv, "Cancelled Future.get() throws CancellationException", true);
         }
     } catch (jniunit::AssertionException& e) {
         // test failed; junit will detect it
+        eac_dprintf("testCancel failed: exception: %s\n", e.what());
+    } catch (std::runtime_error& e) {
+        eac_dprintf("testCancel failed: runtime_error: %s\n", e.what());
     }
 }
 

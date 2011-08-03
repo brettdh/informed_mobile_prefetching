@@ -84,3 +84,10 @@ javaExceptionOccurred(JNIEnv *jenv, const char *file, int line)
         return false;
     }
 }
+
+void
+fatal_error(const string& str)
+{
+    eac_dprintf("Fatal error: %s\n");
+    throw std::runtime_error(str);
+}

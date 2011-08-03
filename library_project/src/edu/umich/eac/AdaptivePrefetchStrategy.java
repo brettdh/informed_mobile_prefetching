@@ -41,7 +41,23 @@ import edu.umich.eac.WifiBandwidthPredictor.Prediction;
  *      - Says "send this on the interface that has the least cost or least chance
  *        of incurring a cost."  i.e. wifi, not 3G
  *    - These only make sense for BG traffic, since FG traffic should always be sent
- *      on the network that can get it done sooner. 
+ *      on the network that can get it done sooner.
+ *      
+ *       
+ * Another issue:
+ *   Currently, a prefetch is either issued or deferred when it arrives.  Later,
+ *   when the sampling thread wakes up, all deferred prefetches will be re-evaluated 
+ *   in the order in which they were hinted. The effect of this is that a new prefetch
+ *   that occurs at a favorable time might jump the entire queue of deferred prefetches.
+ *   
+ *   We could instead stick all prefetches in the queue and then only consider the decision
+ *   (i.e. call what is now named handlePrefetch) for the first prefetch.  This implies the
+ *   belief that a newer prefetch should never jump older prefetches, which are perhaps less
+ *   likely to be promoted after they've been sitting for a while.  The application knows this,
+ *   though, and cancel those prefetches.  So, we will assume that the prefetch order we get 
+ *   from the application is good.
+ *   
+ *   However, we could tune this with the feedback loop as well.
  * 
  */
 class AdaptivePrefetchStrategy extends PrefetchStrategy {
@@ -62,7 +78,7 @@ class AdaptivePrefetchStrategy extends PrefetchStrategy {
             scheduledTime = new Date();
         }
         public void reevaluate() {
-            prefetch.addToPrefetchQueue();
+            handlePrefetch(prefetch);
         }
 
         public int compareTo(PrefetchTask another) {

@@ -14,11 +14,11 @@ Future::getPtr(JNIEnv *jenv, jobject swig_voidptr)
         clazz, "getCPtr", "(Ledu/umich/eac/SWIGTYPE_p_void;)I"
     );
     if (!mid || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find getCPtr method");
+        fatal_error("Can't find getCPtr method");
     }
     long result = jenv->CallStaticIntMethod(clazz, mid, swig_voidptr);
     if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Future.getPtr() threw an exception");
+        fatal_error("Future.getPtr() threw an exception");
     }
     eac_dprintf("getting (void*)long from future returns %lx\n", result);
     return result;
@@ -82,8 +82,9 @@ static void throwNativeException(JNIEnv *jenv, jthrowable err)
         throw Future::TimeoutException(oss.str());
     } else {
         jenv->Throw(err);
+
         oss << " (some other java.util.concurrent.Future exception)";
-        throw std::runtime_error(oss.str());
+        fatal_error(oss.str());
     }
 }
 
@@ -91,7 +92,7 @@ static void checkExceptions(JNIEnv *jenv)
 {
     jthrowable err = jenv->ExceptionOccurred();
     if (err) {
-        throwNativeException(jenv, err);;
+        throwNativeException(jenv, err);
     }
 }
 
@@ -116,17 +117,17 @@ getEnumValue(JNIEnv *jenv, enum TimeUnit units)
 {
     jclass clazz = JClasses::TimeUnit;
     if (!clazz || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find TimeUnit class");
+        fatal_error("Can't find TimeUnit class");
     }
     jfieldID fid = jenv->GetStaticFieldID(clazz, enumNames[units], 
                                           "Ljava/util/concurrent/TimeUnit;");
                                           
     if (!fid || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find TimeUnit constant");
+        fatal_error("Can't find TimeUnit constant");
     }
     jobject jobj = jenv->GetStaticObjectField(clazz, fid);
     if (JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't get TimeUnit constant");
+        fatal_error("Can't get TimeUnit constant");
     }
     return jobj;
 }
@@ -177,30 +178,30 @@ Future::Future(JavaVM *jvm, jobject jfuture_)
     JNIEnv *jenv = getJNIEnv(jvm);
     jclass futureClass = JClasses::Future;
     if (!futureClass || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find Future class");
+        fatal_error("Can't find Future class");
     }
     get_mid = jenv->GetMethodID(futureClass, "get", "()Ljava/lang/Object;");
     if (!get_mid || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find Future.get() method");
+        fatal_error("Can't find Future.get() method");
     }
     getWithTimeout_mid = jenv->GetMethodID(
         futureClass, "get", 
         "(JLjava/util/concurrent/TimeUnit;)Ljava/lang/Object;"
     );
     if (!getWithTimeout_mid || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find Future.get(timeout) method");
+        fatal_error("Can't find Future.get(timeout) method");
     }
     cancel_mid = jenv->GetMethodID(futureClass, "cancel", "(Z)Z");
     if (!cancel_mid || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find Future.cancel() method");
+        fatal_error("Can't find Future.cancel() method");
     }
     isCancelled_mid = jenv->GetMethodID(futureClass, "isCancelled", "()Z");
     if (!isCancelled_mid || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find Future.isCancelled() method");
+        fatal_error("Can't find Future.isCancelled() method");
     }
     isDone_mid = jenv->GetMethodID(futureClass, "isDone", "()Z");
     if (!isDone_mid || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw std::runtime_error("Can't find Future.isDone() method");
+        fatal_error("Can't find Future.isDone() method");
     }
 }
 

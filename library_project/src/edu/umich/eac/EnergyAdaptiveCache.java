@@ -25,14 +25,6 @@ public class EnergyAdaptiveCache {
     private ExecutorService bg_executor;
     private ExecutorService fg_executor;
     
-    // contains prefetches yet to be sent.
-    private BlockingQueue<FetchFuture<?> > prefetchQueue;
-    
-    // contains prefetches that have been sent, potentially having results.
-    // XXX: might be unnecessary.  Only the application needs references
-    //      to these objects
-    private Set<FetchFuture<?> > prefetchCache;
-    
     /** Hints a future access and gets a Future for that access.
      *
      *  TODO: figure out how app could pass ordering constraints, 
@@ -46,18 +38,16 @@ public class EnergyAdaptiveCache {
     public <V> Future<V> prefetch(CacheFetcher<V> fetcher) {
         try {
             FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
-            addToQueue(fetchFuture);
-        
+            strategy.handlePrefetch(fetchFuture);
+            
             return fetchFuture;
-        } catch (InterruptedException e) {
-            // the queue has no max size, so this won't happen.
+        } catch (CancellationException e) {
+            // shouldn't happen; the app can't cancel the prefetch 
+            //  yet because it doesn't have a Future.
+            Log.e(TAG, "Prefetch cancelled before it was sent");
             assert false;
             return null;
         }
-    }
-    
-    void addToQueue(FetchFuture<?> prefetch) throws InterruptedException {
-        prefetchQueue.put(prefetch);
     }
     
     /** Hint a future access and start prefetching it immediately,
@@ -79,7 +69,6 @@ public class EnergyAdaptiveCache {
     
     private <V> Future<V> fetchNow(CacheFetcher<V> fetcher, boolean demand) {
         FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
-        prefetchCache.add(fetchFuture);
         try {
             fetchFuture.startAsync(demand);
         } catch (CancellationException e) {
@@ -97,10 +86,6 @@ public class EnergyAdaptiveCache {
         } else {
             return fg_executor.submit(fetcher);
         }
-    }
-    
-    void remove(FetchFuture<?> fetchFuture) {
-        prefetchCache.remove(fetchFuture);
     }
     
     // cache stats; access must be synchronized(this)
@@ -168,54 +153,13 @@ public class EnergyAdaptiveCache {
         bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
         fg_executor = Executors.newCachedThreadPool();
 
-        prefetchQueue = new LinkedBlockingQueue<FetchFuture<?> >();
-        prefetchCache = Collections.synchronizedSet(
-            new TreeSet<FetchFuture<?> >()
-        );
-        
         // fake value to start so that prefetches aren't 
         //  immediately considered not promoted 
         mPromotionDelay.addValue(mPromotionDelayInit);
         
         strategy = PrefetchStrategy.create(strategyType, goalTime, 
                                            energyBudget, dataBudget);
-        
-        prefetchThread = new PrefetchThread();
-        prefetchThread.start();
     }
     
-    private PrefetchThread prefetchThread;
     PrefetchStrategy strategy;
-    
-    private class PrefetchThread extends Thread {
-        public void run() {
-            /* TODO 
-             *     forever:
-             *         Check whether I should invoke a prefetch
-             *         If so, submit its callable to the ExecutorService
-             *         Decide how long to wait before checking again,
-             *             perhaps registering an intnw notification callback
-             *             to be woken up at that point
-             */
-            
-            while (true) {
-                try {
-                    FetchFuture<?> prefetch = prefetchQueue.take();
-                    prefetchCache.add(prefetch);
-
-                    strategy.handlePrefetch(prefetch);
-                    
-                    // TODO: implement the real strategy
-                    //  I imagine this will take the form of a 
-                    //  callback with a timeout.
-                    //  The callback may be triggered by an IntNW
-                    //  "enhanced thunk."
-                } catch (InterruptedException e) {
-                    // if thrown by take(); ignore and try again.
-                } catch (CancellationException e) {
-                    Log.e(TAG, "Prefetch cancelled before it was sent");
-                }
-            }
-        }
-    }
 }

@@ -10,7 +10,6 @@ namespace jniunit {
     void callNativeFunction(JNIEnv *jenv, 
                             const char *name, const char *sig, 
                             const char *msg, ...) {
-        ;
         jclass cls = JClasses::Assert;
         if (!cls || JAVA_EXCEPTION_OCCURRED(jenv)) {
             /* class not found */
@@ -66,8 +65,12 @@ namespace jniunit {
         try {
             callNativeFunction(jenv, "assertTrue", "(Ljava/lang/String;Z)V",
                                msg, msgStr, condition);
+            eac_dprintf("Assertion succeeded: %s\n", msg);
         } catch (AssertionException e) {
             eac_dprintf("Assertion failed : %s\n", msg);
+            throw;
+        } catch (std::runtime_error& e) {
+            eac_dprintf("Fatal error in assertTrue: %s\n", e.what());
             throw;
         }
     }
@@ -77,8 +80,12 @@ namespace jniunit {
         try {
             callNativeFunction(jenv, "assertFalse", "(Ljava/lang/String;Z)V",
                                msg, msgStr, condition);
+            eac_dprintf("Assertion succeeded: %s\n", msg);
         } catch (AssertionException e) {
             eac_dprintf("Assertion failed : %s\n", msg);
+            throw;
+        } catch (std::runtime_error& e) {
+            eac_dprintf("Fatal error in assertFalse: %s\n", e.what());
             throw;
         }
     }
@@ -89,6 +96,9 @@ namespace jniunit {
             callNativeFunction(jenv, "fail", "()V", msg, msgStr);
         } catch (AssertionException e) {
             eac_dprintf("Assertion failed : %s\n", msg);
+            throw;
+        } catch (std::runtime_error& e) {
+            eac_dprintf("Fatal error in fail: %s\n", e.what());
             throw;
         }
     }

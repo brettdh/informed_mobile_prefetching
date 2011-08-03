@@ -95,7 +95,6 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
         cancelPromotionTimeout();
         cache.updateStats(this, true);
-        cache.remove(this);
         cache.strategy.onPrefetchCancelled(this);
         
         Future<V> f = getFutureRef();
@@ -144,7 +143,6 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         cache.updateStats(this, false);
         establishFuture(true);
         V result = realFuture.get();
-        cache.remove(this);
         return result;
     }
     
@@ -155,7 +153,6 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         cache.updateStats(this, false);
         establishFuture(true);
         V result = realFuture.get(timeout, unit);
-        cache.remove(this);
         return result;
     }
     
@@ -175,20 +172,6 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
      */
     void startAsync(boolean demand) {
         establishFuture(demand);
-    }
-    
-    /**
-     * Resubmit this prefetch to its EnergyAdaptiveCache.
-     * This is used to make a new prefetch decision after
-     * a prefetch has been deferred and rescheduled.
-     */
-    void addToPrefetchQueue() {
-        try {
-            cache.addToQueue(this);
-        } catch (InterruptedException e) {
-            // queue is unbounded; shouldn't happen
-            assert false;
-        }
     }
     
     public int compareTo(FetchFuture<V> other) {
