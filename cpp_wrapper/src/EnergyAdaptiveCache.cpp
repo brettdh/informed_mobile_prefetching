@@ -7,6 +7,80 @@
 #include "eac_utility.h"
 #include "jclasses.h"
 
+#include <exception>
+#include <exception_defines.h>
+#include <cxxabi.h>
+#include <typeinfo>
+
+using namespace abi;
+
+static void my_abort()
+{
+    sigset_t mask;
+    sigfillset(&mask);
+    sigdelset(&mask, SIGSEGV);
+    
+    (void)sigprocmask(SIG_SETMASK, &mask, (sigset_t *)NULL);
+    
+    *((char *)(0xdeadbaad)) = 39;
+    _exit(1);
+}
+
+// A replacement for the standard terminate_handler which prints
+// more information about the terminating exception (if any) on
+// stderr. (copied from libsupc++: vterminate.cc)
+static void term_handler()
+{
+    static bool terminating;
+    if (terminating)
+        {
+            eac_dprintf("terminate called recursively\n");
+            my_abort();
+        }
+    terminating = true;
+    
+    // Make sure there was an exception; terminate is also called for an
+    // attempt to rethrow when there is no suitable exception.
+    std::type_info *t = __cxa_current_exception_type();
+    if (t)
+        {
+            // Note that "name" is the mangled name.
+            char const *name = t->name();
+            {
+                int status = -1;
+                char *dem = 0;
+                
+                dem = __cxa_demangle(name, 0, 0, &status);
+                
+                eac_dprintf("terminate called after throwing an instance of '%s'\n",
+                            (status == 0) ? dem : name);
+                
+                if (status == 0)
+                    free(dem);
+            }
+            
+            // If the exception is derived from std::exception, we can
+            // give more information.
+            try { __throw_exception_again; }
+            catch (std::exception &exc)
+                {
+                    char const *w = exc.what();
+                    eac_dprintf("  what(): %s\n", w);
+                }
+            catch (...) { }
+        }
+    else
+        eac_dprintf("terminate called without an active exception\n");
+    
+    my_abort();
+}
+
+static void lib_init(void) __attribute__((constructor));
+static void lib_init(void)
+{
+    std::set_terminate(term_handler);
+}
+
 
 static const char *enumNames[NUM_STRATEGIES] = {
     "AGGRESSIVE",
