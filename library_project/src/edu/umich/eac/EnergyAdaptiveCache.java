@@ -38,7 +38,7 @@ public class EnergyAdaptiveCache {
     public <V> Future<V> prefetch(CacheFetcher<V> fetcher) {
         try {
             FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
-            strategy.handlePrefetch(fetchFuture);
+            strategy.onPrefetchEnqueued(fetchFuture);
             
             return fetchFuture;
         } catch (CancellationException e) {

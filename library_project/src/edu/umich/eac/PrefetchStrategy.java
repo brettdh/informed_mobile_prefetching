@@ -8,7 +8,7 @@ import edu.umich.eac.AggressivePrefetchStrategy;
 import edu.umich.eac.ConservativePrefetchStrategy;
 
 abstract class PrefetchStrategy {
-    public abstract void handlePrefetch(FetchFuture<?> prefetch);
+    public abstract void onPrefetchEnqueued(FetchFuture<?> prefetch);
     public void onPrefetchCancelled(FetchFuture<?> prefetch) {}
     
     /** 
