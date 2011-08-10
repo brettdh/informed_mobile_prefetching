@@ -6,4 +6,10 @@ public interface CacheFetcher<V> {
      *    doing a prefetch or a demand fetch.
      */
     public V call(int labels) throws Exception;
+
+    public int bytesToTransfer();
+
+    public double estimateFetchTime(int worstBandwidthDown,
+                                    int worstBandwidthUp,
+                                    int worstRTT);
 }

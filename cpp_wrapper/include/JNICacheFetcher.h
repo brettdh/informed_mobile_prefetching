@@ -4,6 +4,10 @@
 class JNICacheFetcher {
 public:
     virtual void* call(int labels) = 0;
+    virtual int bytesToTransfer() = 0;
+    virtual double estimateFetchTime(int worstBandwidthDown,
+                                     int worstBandwidthUp,
+                                     int worstRTT) = 0;
     virtual ~JNICacheFetcher() {}
 };
 

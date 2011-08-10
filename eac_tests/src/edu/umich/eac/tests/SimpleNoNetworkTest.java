@@ -59,5 +59,17 @@ public class SimpleNoNetworkTest extends InstrumentationTestCase {
             }
             return msg;
         }
+        
+        public int bytesToTransfer() {
+            return msg.length();
+        }
+        
+        public double estimateFetchTime(int worstBandwidthDown,
+                                        int worstBandwidthUp,
+                                        int worstRTT) {
+            return ((double) bytesToTransfer() / (double) worstBandwidthDown +
+                    ((double) worstRTT) / 1000.0);
+        }
+
     }
 }

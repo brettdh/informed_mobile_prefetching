@@ -63,5 +63,14 @@ public class CancelTest extends InstrumentationTestCase {
                 Thread.sleep(3600 * 1000);
             }
         }
+        public int bytesToTransfer() {
+            return 0;
+        }
+        public double estimateFetchTime(int worstBandwidthDown,
+                                        int worstBandwidthUp,
+                                        int worstRTT) {
+            return ((double) bytesToTransfer() / (double) worstBandwidthDown +
+                    ((double) worstRTT) / 1000.0);
+        }
     }
 }

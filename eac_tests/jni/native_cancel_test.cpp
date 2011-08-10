@@ -23,11 +23,21 @@ using jniunit::fail;
 
 class CancelFetcher : public JNICacheFetcher {
 public:
-    void *call(int labels) {
+    virtual void *call(int labels) {
         // Never return; just wait to be cancelled.
         while (true) {
             thread_sleep(3600 * 1000);
         }
+    }
+    virtual int bytesToTransfer() {
+        return 0;
+    }
+    virtual double estimateFetchTime(int worstBandwidthDown,
+                                     int worstBandwidthUp,
+                                     int worstRTT)
+    {
+        return (((double)bytesToTransfer()) / worstBandwidthDown + 
+                ((double)worstRTT) / 1000);
     }
 };
 

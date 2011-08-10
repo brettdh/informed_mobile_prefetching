@@ -33,6 +33,16 @@ public:
             return (void*)demand_fetch_str;
         }
     }
+    virtual int bytesToTransfer() {
+        return strlen(demand_fetch_str);
+    }
+    virtual double estimateFetchTime(int worstBandwidthDown,
+                                     int worstBandwidthUp,
+                                     int worstRTT)
+    {
+        return (((double)bytesToTransfer()) / worstBandwidthDown + 
+                ((double)worstRTT) / 1000);
+    }
 };
 
 const char PromotionFetcher::prefetch_str[] = "Got prefetch result";

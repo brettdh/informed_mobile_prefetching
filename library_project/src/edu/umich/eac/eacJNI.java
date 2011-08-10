@@ -10,6 +10,9 @@ package edu.umich.eac;
 
 class eacJNI {
   public final static native int JNICacheFetcher_call(int jarg1, JNICacheFetcher jarg1_, int jarg2);
+  public final static native int JNICacheFetcher_bytesToTransfer(int jarg1, JNICacheFetcher jarg1_);
+  public final static native double JNICacheFetcher_estimateFetchTime(int jarg1, JNICacheFetcher jarg1_,
+                                                                      int jarg2, int jarg3, int jarg4);
   public final static native void delete_JNICacheFetcher(int jarg1);
 
   static {

@@ -49,15 +49,30 @@ public class PromotionTest extends InstrumentationTestCase {
     }
     
     private class PromotionFetcher implements CacheFetcher<String> {
+        private static final String PREFETCH_MSG = "Got prefetch result";
+        private static final String DEMAND_FETCH_MSG = "Got demand fetch result";
+
         public String call(int labels) throws InterruptedException {
             if ((labels & IntNWLabels.BACKGROUND) != 0) {
                 Thread.currentThread();
                 // simulate a background fetch taking longer (exaggerated)
                 Thread.sleep(3000);
-                return "Got prefetch result";
+                return PREFETCH_MSG;
             } else {
-                return "Got demand fetch result";
+                return DEMAND_FETCH_MSG;
             }
         }
+        
+        public int bytesToTransfer() {
+            return DEMAND_FETCH_MSG.length();
+        }
+        
+        public double estimateFetchTime(int worstBandwidthDown,
+                                        int worstBandwidthUp,
+                                        int worstRTT) {
+            return ((double) bytesToTransfer() / (double) worstBandwidthDown +
+                    ((double) worstRTT) / 1000.0);
+        }
+
     }
 }

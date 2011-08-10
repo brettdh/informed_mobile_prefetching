@@ -238,6 +238,46 @@ SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(JNIEnv *
   return jresult;
 }
 
+SWIGEXPORT jint JNICALL Java_eacJNI_JNICacheFetcher_1bytesToTransfer(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_) {
+  jint jresult = 0 ;
+  JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;
+  boost::shared_ptr< JNICacheFetcher > *smartarg1 = 0 ;
+  int result;
+  
+  (void)jenv;
+  (void)jcls;
+  (void)jarg1_;
+  
+  smartarg1 = *(boost::shared_ptr<  JNICacheFetcher > **)&jarg1;
+  arg1 = (JNICacheFetcher *)(smartarg1 ? smartarg1->get() : 0); 
+  result = (int)(arg1)->bytesToTransfer();
+  jresult = (jint)result; 
+  return jresult;
+}
+
+SWIGEXPORT jdouble JNICALL Java_eacJNI_JNICacheFetcher_1estimateFetchTime(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_, jint jarg2, jint jarg3, jint jarg4) {
+  jdouble jresult = 0 ;
+  JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;
+  int arg2 ;
+  int arg3 ;
+  int arg4 ;
+  boost::shared_ptr< JNICacheFetcher > *smartarg1 = 0 ;
+  double result;
+  
+  (void)jenv;
+  (void)jcls;
+  (void)jarg1_;
+  
+  smartarg1 = *(boost::shared_ptr<  JNICacheFetcher > **)&jarg1;
+  arg1 = (JNICacheFetcher *)(smartarg1 ? smartarg1->get() : 0); 
+  arg2 = (int)jarg2; 
+  arg3 = (int)jarg3; 
+  arg4 = (int)jarg4; 
+  result = (double)(arg1)->estimateFetchTime(arg2,arg3,arg4);
+  jresult = (jdouble)result; 
+  return jresult;
+}
+
 
 SWIGEXPORT void JNICALL Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(JNIEnv *jenv, jclass jcls, jint jarg1) {
   JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;

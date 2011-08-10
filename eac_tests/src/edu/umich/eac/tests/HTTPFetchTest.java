@@ -82,5 +82,16 @@ public class HTTPFetchTest extends InstrumentationTestCase {
 
             return buffer.toString();
         }
+        
+        public int bytesToTransfer() {
+            return 1024; // arbitrary
+        }
+        
+        public double estimateFetchTime(int worstBandwidthDown,
+                                        int worstBandwidthUp,
+                                        int worstRTT) {
+            return ((double) bytesToTransfer() / (double) worstBandwidthDown +
+                    ((double) worstRTT) / 1000.0);
+        }
     }
 }

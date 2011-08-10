@@ -46,6 +46,18 @@ public:
         }
         return (void*)msg;
     }
+
+    virtual int bytesToTransfer() {
+        return strlen(msg);
+    }
+
+    virtual double estimateFetchTime(int worstBandwidthDown,
+                                     int worstBandwidthUp,
+                                     int worstRTT)
+    {
+        return (((double)bytesToTransfer()) / worstBandwidthDown + 
+                ((double)worstRTT) / 1000);
+    }
 };
 
 const char FakeFetcher::msg[] = "This is the string you asked for.";

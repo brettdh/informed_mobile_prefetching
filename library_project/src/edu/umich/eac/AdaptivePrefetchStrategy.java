@@ -44,8 +44,13 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private int mEnergyBudget;
     private int mDataBudget;
     
+    private double fixedEnergyWeight;
+    private double fixedDataWeight;
+    
     private int mEnergySpent;
     private ProcNetworkStats mDataSpent;
+    
+    private NetworkStats networkStats;
     
     private MonitorThread monitorThread;
     
@@ -60,6 +65,11 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         
         monitorThread = new MonitorThread();
         monitorThread.start();
+    }
+    
+    public void setStaticParams(double energyWeight, double dataWeight) {
+        fixedEnergyWeight = energyWeight;
+        fixedDataWeight = dataWeight;
     }
 
     class MonitorThread extends Thread {
@@ -96,10 +106,61 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
     
     private boolean handlePrefetch(FetchFuture<?> prefetch) {
-        // TODO: implement
-        return false;
+        double cost = calculateCost(prefetch);
+        double benefit = calculateBenefit(prefetch);
+        if (cost < benefit) {
+            issuePrefetch(prefetch);
+            return true;
+        } else {
+            deferDecision(prefetch);
+            return false;
+        }
     }
     
+    private double calculateCost(FetchFuture<?> prefetch) {
+        double energyWeight = calculateEnergyWeight();
+        double dataWeight = calculateDataWeight();
+        return (energyWeight * estimateEnergyCost(prefetch) +
+                dataWeight * estimateDataCost(prefetch));
+    }
+
+    private double calculateEnergyWeight() {
+        // TODO: tune adaptively based on resource usage history & projection.
+        return fixedEnergyWeight;
+    }
+
+    private double calculateDataWeight() {
+        // TODO: tune adaptively based on resource usage history & projection.
+        return fixedDataWeight;
+    }
+
+    private double estimateEnergyCost(FetchFuture<?> prefetch) {
+        // TODO: use a power model to estimate the cost of sending 
+        //       this given the available network(s).
+        //       This assumes the application can report how many bytes 
+        //       comprise a fetch operation.
+        return 0;
+    }
+
+    private double estimateDataCost(FetchFuture<?> prefetch) {
+        if (!isWifiAvailable()) {
+            return prefetch.bytesToTransfer();
+        } else {
+            return 0;
+        }
+    }
+
+    private double calculateBenefit(FetchFuture<?> prefetch) {
+        // Application implements this computation.
+        // networkStats contains an estimate of the worst network conditions
+        //   that the fetch might encounter, so estimateFetchTime is an upper bound on
+        //   the benefit of prefetching.
+        // networkStats is updated periodically/continuously by the caching framework.
+        return prefetch.estimateFetchTime(networkStats.worstBandwidthDown,
+                                          networkStats.worstBandwidthUp,
+                                          networkStats.worstRTT);
+    }
+
     private WifiBandwidthPredictor wifiPredictor = new WifiBandwidthPredictor();
     
     private double timeUntilGoal() {

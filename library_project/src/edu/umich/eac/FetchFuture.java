@@ -44,6 +44,18 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         fetcher.labels |= labels;
     }
     
+    public int bytesToTransfer() {
+        return fetcher.labeledFetcher.bytesToTransfer();
+    }
+
+    public double estimateFetchTime(int worstBandwidthDown,
+                                    int worstBandwidthUp,
+                                    int worstRTT) {
+        return fetcher.labeledFetcher.estimateFetchTime(worstBandwidthDown,
+                                                        worstBandwidthUp,
+                                                        worstRTT);
+    }
+
     private class UpdateStatsTask extends TimerTask {
         private FetchFuture<?> mFuture;
         UpdateStatsTask(FetchFuture<?> future) {

@@ -47,4 +47,17 @@ public class JNICacheFetcher implements CacheFetcher<SWIGTYPE_p_void> {
     int cPtr = eacJNI.JNICacheFetcher_call(swigCPtr, this, labels);
     return (cPtr == 0) ? null : new SWIGTYPE_p_void(cPtr, false);
   }
+  
+  public int bytesToTransfer() {
+    return eacJNI.JNICacheFetcher_bytesToTransfer(swigCPtr, this);
+  }
+  
+  public double estimateFetchTime(int worstBandwidthDown,
+                                  int worstBandwidthUp,
+                                  int worstRTT) {
+      return eacJNI.JNICacheFetcher_estimateFetchTime(swigCPtr, this,
+                                                      worstBandwidthDown,
+                                                      worstBandwidthUp,
+                                                      worstRTT);
+    }
 }
