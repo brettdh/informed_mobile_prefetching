@@ -160,7 +160,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         NetworkStats networkStats = getNetworkStats();
         return prefetch.estimateFetchTime(networkStats.bandwidthDown,
                                           networkStats.bandwidthUp,
-                                          networkStats.rtt);
+                                          networkStats.rttMillis);
     }
 
     private native NetworkStats getNetworkStats();
