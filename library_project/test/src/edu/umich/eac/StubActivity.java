@@ -1,5 +1,6 @@
-package edu.umich.eac.tests;
+package edu.umich.eac;
 
+import edu.umich.eac.tests.R;
 import android.app.Activity;
 import android.os.Bundle;
 

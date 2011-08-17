@@ -62,8 +62,9 @@ static void fillStats(JNIEnv *jenv, jobject stats, int bw_down, int bw_up, int r
     fillField(jenv, stats, "rttMillis", rtt_ms);
 }
 
+extern "C"
 JNIEXPORT jobject JNICALL 
-Java_edu_umich_eac_AdaptivePrefetchStrategy_getNetworkStats(JNIEnv *jenv, jobject jobj)
+Java_edu_umich_eac_NetworkStats_getNetworkStats(JNIEnv *jenv, jclass cls)
 {
     // look at all available networks and pick the one with the best bandwidth.
 

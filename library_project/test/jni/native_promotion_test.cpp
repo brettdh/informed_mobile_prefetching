@@ -53,7 +53,7 @@ static JNICacheFetcherPtr fetcher;
 static Future *future;
 
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativePromotionTest_setUp(JNIEnv *jenv, jobject jobj)
+Java_edu_umich_eac_NativePromotionTest_setUp(JNIEnv *jenv, jobject jobj)
 {
     cache = new EnergyAdaptiveCache(jenv, AGGRESSIVE);
     fetcher.reset(new PromotionFetcher());
@@ -69,7 +69,7 @@ Java_edu_umich_eac_tests_NativePromotionTest_setUp(JNIEnv *jenv, jobject jobj)
 }
 
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativePromotionTest_tearDown(
+Java_edu_umich_eac_NativePromotionTest_tearDown(
     JNIEnv *jenv, jobject jobj)
 {
     delete future;
@@ -78,7 +78,7 @@ Java_edu_umich_eac_tests_NativePromotionTest_tearDown(
 }
 
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativePromotionTest_testWaitForPrefetch(
+Java_edu_umich_eac_NativePromotionTest_testWaitForPrefetch(
     JNIEnv *jenv, jobject jobj)
 {
     try {
@@ -98,7 +98,7 @@ Java_edu_umich_eac_tests_NativePromotionTest_testWaitForPrefetch(
 
 
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativePromotionTest_testPromotion(
+Java_edu_umich_eac_NativePromotionTest_testPromotion(
     JNIEnv *jenv, jobject jobj)
 {
     try {

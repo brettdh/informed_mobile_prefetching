@@ -1,4 +1,4 @@
-package edu.umich.eac.tests;
+package edu.umich.eac;
 
 import android.test.InstrumentationTestCase;
 

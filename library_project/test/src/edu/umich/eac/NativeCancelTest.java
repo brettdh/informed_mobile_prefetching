@@ -1,6 +1,4 @@
-package edu.umich.eac.tests;
-
-import java.util.concurrent.CancellationException;
+package edu.umich.eac;
 
 import android.test.InstrumentationTestCase;
 

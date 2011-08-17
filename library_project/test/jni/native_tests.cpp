@@ -66,7 +66,7 @@ const char FakeFetcher::msg[] = "This is the string you asked for.";
 extern "C"
 #endif
 JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj, 
+Java_edu_umich_eac_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj,
                                                   jint delaySecs)
 {
     EnergyAdaptiveCache cache(jenv, AGGRESSIVE);

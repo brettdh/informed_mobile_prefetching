@@ -1,4 +1,4 @@
-package edu.umich.eac.tests;
+package edu.umich.eac;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;

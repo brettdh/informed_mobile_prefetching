@@ -157,13 +157,11 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         // networkStats contains an estimate of the average network conditions
         //   that the fetch might encounter, so estimateFetchTime represents the 
         //   average benefit of prefetching (taking size into account).
-        NetworkStats networkStats = getNetworkStats();
+        NetworkStats networkStats = NetworkStats.getNetworkStats();
         return prefetch.estimateFetchTime(networkStats.bandwidthDown,
                                           networkStats.bandwidthUp,
                                           networkStats.rttMillis);
     }
-
-    private native NetworkStats getNetworkStats();
 
     private WifiBandwidthPredictor wifiPredictor = new WifiBandwidthPredictor();
     

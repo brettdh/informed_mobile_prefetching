@@ -48,7 +48,7 @@ static JNICacheFetcherPtr fetcher;
 static Future *future;
     
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativeCancelTest_setUp(JNIEnv *jenv, jobject jobj)
+Java_edu_umich_eac_NativeCancelTest_setUp(JNIEnv *jenv, jobject jobj)
 {
     cache = new EnergyAdaptiveCache(jenv, AGGRESSIVE);
     fetcher.reset(new CancelFetcher());
@@ -64,7 +64,7 @@ Java_edu_umich_eac_tests_NativeCancelTest_setUp(JNIEnv *jenv, jobject jobj)
 }
 
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativeCancelTest_tearDown(
+Java_edu_umich_eac_NativeCancelTest_tearDown(
     JNIEnv *jenv, jobject jobj)
 {
     eac_dprintf("In NativeCancelTest::tearDown");
@@ -75,7 +75,7 @@ Java_edu_umich_eac_tests_NativeCancelTest_tearDown(
 }
 
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativeCancelTest_testGetTimeout(
+Java_edu_umich_eac_NativeCancelTest_testGetTimeout(
     JNIEnv *jenv, jobject jobj)
 {
     try {
@@ -93,7 +93,7 @@ Java_edu_umich_eac_tests_NativeCancelTest_testGetTimeout(
 }
     
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_tests_NativeCancelTest_testCancel(
+Java_edu_umich_eac_NativeCancelTest_testCancel(
     JNIEnv *jenv, jobject jobj)
 {
     try {
