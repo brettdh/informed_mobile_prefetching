@@ -238,7 +238,7 @@ SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(JNIEnv *
   return jresult;
 }
 
-SWIGEXPORT jint JNICALL Java_eacJNI_JNICacheFetcher_1bytesToTransfer(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_) {
+SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1bytesToTransfer(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_) {
   jint jresult = 0 ;
   JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;
   boost::shared_ptr< JNICacheFetcher > *smartarg1 = 0 ;
@@ -255,7 +255,7 @@ SWIGEXPORT jint JNICALL Java_eacJNI_JNICacheFetcher_1bytesToTransfer(JNIEnv *jen
   return jresult;
 }
 
-SWIGEXPORT jdouble JNICALL Java_eacJNI_JNICacheFetcher_1estimateFetchTime(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_, jint jarg2, jint jarg3, jint jarg4) {
+SWIGEXPORT jdouble JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1estimateFetchTime(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_, jint jarg2, jint jarg3, jint jarg4) {
   jdouble jresult = 0 ;
   JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;
   int arg2 ;

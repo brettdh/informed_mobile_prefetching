@@ -8,6 +8,8 @@
 #include <Future.h>
 #include <eac_utility.h>
 #include "utility.h"
+#include "jniunit.h"
+using jniunit::assertTrue;
 
 void doAssertions(JNIEnv *jenv, jobject jobj, bool futureNotDoneYet,
                   const char *refStr, const char *str,
@@ -63,8 +65,9 @@ public:
 const char FakeFetcher::msg[] = "This is the string you asked for.";
 
 #ifdef __cplusplus
-extern "C"
+extern "C" {
 #endif
+
 JNIEXPORT void JNICALL 
 Java_edu_umich_eac_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj,
                                                   jint delaySecs)
@@ -92,4 +95,6 @@ Java_edu_umich_eac_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj,
     }
 }
 
-
+#ifdef __cplusplus
+}
+#endif

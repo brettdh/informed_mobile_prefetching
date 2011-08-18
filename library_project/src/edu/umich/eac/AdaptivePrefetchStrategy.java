@@ -44,8 +44,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private int mEnergyBudget;
     private int mDataBudget;
     
-    private double fixedEnergyWeight;
-    private double fixedDataWeight;
+    private static boolean fixedAdaptiveParamsEnabled = false;
+    private static double fixedEnergyWeight;
+    private static double fixedDataWeight;
     
     private int mEnergySpent;
     private ProcNetworkStats mDataSpent;
@@ -67,7 +68,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         monitorThread.start();
     }
     
-    public void setStaticParams(double energyWeight, double dataWeight) {
+    public static void setStaticParams(double energyWeight, double dataWeight) {
+        fixedAdaptiveParamsEnabled = true;
         fixedEnergyWeight = energyWeight;
         fixedDataWeight = dataWeight;
     }
@@ -81,12 +83,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                 
                 mDataSpent.updateStats();
                 
-                PrefetchTask task = deferredPrefetches.remove();
-                if (task.reevaluate()) {
-                    continue;
-                }
-                
                 try {
+                    PrefetchTask task = deferredPrefetches.take();
+                    if (task.reevaluate()) {
+                        continue;
+                    }
+                
                     Thread.sleep(SAMPLE_PERIOD_MS);
                 } catch (InterruptedException e) {
                     break;
@@ -124,14 +126,25 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                 dataWeight * estimateDataCost(prefetch));
     }
 
+    private static final String ADAPTATION_NOT_IMPL_MSG =
+       "Fixed adaptive params not set and auto-adaptation not yet implemented";
+
     private double calculateEnergyWeight() {
-        // TODO: tune adaptively based on resource usage history & projection.
-        return fixedEnergyWeight;
+        if (fixedAdaptiveParamsEnabled) {
+            return fixedEnergyWeight;
+        } else {
+            // TODO: tune adaptively based on resource usage history & projection.
+            throw new Error(ADAPTATION_NOT_IMPL_MSG);
+        }
     }
 
     private double calculateDataWeight() {
-        // TODO: tune adaptively based on resource usage history & projection.
-        return fixedDataWeight;
+        if (fixedAdaptiveParamsEnabled) {
+            return fixedDataWeight;
+        } else {
+            // TODO: tune adaptively based on resource usage history & projection.
+            throw new Error(ADAPTATION_NOT_IMPL_MSG);
+        }
     }
 
     private double estimateEnergyCost(FetchFuture<?> prefetch) {
