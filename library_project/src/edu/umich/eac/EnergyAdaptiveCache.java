@@ -1,5 +1,9 @@
 package edu.umich.eac;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Callable;
@@ -38,6 +42,7 @@ public class EnergyAdaptiveCache {
     public <V> Future<V> prefetch(CacheFetcher<V> fetcher) {
         try {
             FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
+            stats.onPrefetchHint(fetchFuture);
             strategy.onPrefetchEnqueued(fetchFuture);
             
             return fetchFuture;
@@ -55,7 +60,7 @@ public class EnergyAdaptiveCache {
      *
      *  This is useful for testing.
      */
-    public <V> Future<V> prefetchNow(CacheFetcher<V> fetcher) {
+    <V> Future<V> prefetchNow(CacheFetcher<V> fetcher) {
         return fetchNow(fetcher, false);
     }
     
@@ -69,6 +74,9 @@ public class EnergyAdaptiveCache {
     
     private <V> Future<V> fetchNow(CacheFetcher<V> fetcher, boolean demand) {
         FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
+        if (demand) {
+            stats.onDemandFetch(fetchFuture);
+        }
         try {
             fetchFuture.startAsync(demand);
         } catch (CancellationException e) {
@@ -88,54 +96,7 @@ public class EnergyAdaptiveCache {
         }
     }
     
-    // cache stats; access must be synchronized(this)
-    
-    // promotion delay is in milliseconds
-    private final long mPromotionDelayInit = 5000;
-    private SummaryStatistics mPromotionDelay = new SummaryStatistics();
-    private int mNumPromotions = 0;
-    private int mNumPrefetches = 0;
-    private double mPromotionRateEWMA = 1.0;
-    private final double alpha = 0.9;
-    
-    <V> void updateStats(FetchFuture<V> fetchFuture,
-                         boolean wasCancelled) {
-        synchronized(this) {
-            if (!wasCancelled) {
-                // prefetch->fetch delay
-                long promotion_delay = fetchFuture.millisSinceCreated();
-                mPromotionDelay.addValue(promotion_delay);
-
-                // promotion rate
-                mNumPromotions++;
-            }
-            mNumPrefetches++;
-            updatePromotionRate(mNumPromotions / mNumPrefetches);
-        }
-    }
-    
-    private synchronized void updatePromotionRate(double sample) {
-        mPromotionRateEWMA = 
-            (alpha * mPromotionRateEWMA) + ((1 - alpha) * sample);
-    }
-    
-    synchronized double getPromotionRate() {
-        return mPromotionRateEWMA;
-    }
-    
-    /**
-     * @return The [avg, stdev] promotion delay of this cache, or null if 
-     *         there haven't been any promotions yet.
-     */
-    synchronized double[] getPromotionDelay() {
-        if (mPromotionDelay.getN() == 0) {
-            return null;
-        }
-        double avgDelay = mPromotionDelay.getMean();
-        double stddevDelay = mPromotionDelay.getStandardDeviation(); 
-        double ret[] = {avgDelay, stddevDelay};
-        return ret;
-    }
+    CacheStats stats = new CacheStats();
     
     // Bound on the number of in-flight prefetches, similar to before.
     // XXX: does this need to be configurable?
@@ -153,12 +114,46 @@ public class EnergyAdaptiveCache {
         bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
         fg_executor = Executors.newCachedThreadPool();
 
-        // fake value to start so that prefetches aren't 
-        //  immediately considered not promoted 
-        mPromotionDelay.addValue(mPromotionDelayInit);
-        
         strategy = PrefetchStrategy.create(strategyType, goalTime, 
                                            energyBudget, dataBudget);
+    }
+    
+    private class LogOutputStream extends OutputStream {
+        // Implementation borrowed from:
+        //   http://tech.chitgoks.com/2008/03/17/android-showing-systemout-messages-to-console/
+        private ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        private String name;
+        
+        public LogOutputStream(String name)   {
+          this.name = name;
+        }
+        
+        @Override
+        public void write(int b) throws IOException {
+            if (((byte) b) == '\n') {
+                String s = new String(buffer.toByteArray());
+                Log.v(name, s);
+                buffer.reset();
+            } else {
+                buffer.write(b);
+            }
+        }
+    }
+    private LogOutputStream logStream = new LogOutputStream(TAG);
+    
+    public void printCacheStats() {
+        printCacheStatsToFile(logStream);
+    }
+    
+    public void printCacheStatsToFile(OutputStream out) {
+        PrintWriter writer = new PrintWriter(out, true);
+        writer.println("Cache stats:");
+        writer.format("  Items hinted: %d\n", stats.numHints());
+        writer.format("  Items fetched: %d\n", stats.numCompletedFetches());
+        writer.format("  Demand requests: %d\n", stats.numDemandRequests());
+        writer.format("  Cache hits: %d\n", stats.numHits());
+        writer.format("  Cache misses: %d\n", stats.numMisses());
+        writer.format("  Hit rate: %.02f %%\n", stats.getHitRate() * 100.0);
     }
     
     PrefetchStrategy strategy;

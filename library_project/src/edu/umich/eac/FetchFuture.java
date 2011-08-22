@@ -56,45 +56,12 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
                                                         worstRTT);
     }
 
-    private class UpdateStatsTask extends TimerTask {
-        private FetchFuture<?> mFuture;
-        UpdateStatsTask(FetchFuture<?> future) {
-            mFuture = future;
-        }
-        
-        @Override
-        public void run() {
-            // if this task gets run, the prefetch is considered not promoted.
-            mFuture.cache.updateStats(mFuture, true);
-            synchronized(mFuture) {
-                mFuture.updateStatsTask = null;
-            }
-        }
-    }
-    private static Timer timer = new Timer();
-    private UpdateStatsTask updateStatsTask;
-    
-    private synchronized void cancelPromotionTimeout() {
-        if (updateStatsTask != null) {
-            updateStatsTask.cancel();
-            updateStatsTask = null;
-        }
-    }
-    
     FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_) {
         realFuture = null;
         fetcher = new CallableWrapperFetcher(fetcher_);
         cancelled = false;
         cache = cache_;
         timeCreated = new Date();
-        
-        updateStatsTask = new UpdateStatsTask(this);
-        double[] promotionDelay = cache.getPromotionDelay();
-        
-        // avg + stddev
-        long timeout = (long)(promotionDelay[0] + promotionDelay[1]);
-        Date expiration = new Date((long) (timeCreated.getTime() + timeout));
-        timer.schedule(updateStatsTask, expiration);
     }
     
     long millisSinceCreated() {
@@ -105,8 +72,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         if (cancelled) {
             return true;
         }
-        cancelPromotionTimeout();
-        cache.updateStats(this, true);
+        cache.stats.onFetchCancelled(this);
         cache.strategy.onPrefetchCancelled(this);
         
         Future<V> f = getFutureRef();
@@ -151,8 +117,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     
     public V get() throws InterruptedException, ExecutionException, 
                           CancellationException {
-        cancelPromotionTimeout();
-        cache.updateStats(this, false);
+        cache.stats.onDemandFetch(this);
         establishFuture(true);
         V result = realFuture.get();
         return result;
@@ -161,8 +126,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     public V get(long timeout, TimeUnit unit) 
         throws InterruptedException, ExecutionException, 
                TimeoutException, CancellationException {
-        cancelPromotionTimeout();
-        cache.updateStats(this, false);
+        cache.stats.onDemandFetch(this);
         establishFuture(true);
         V result = realFuture.get(timeout, unit);
         return result;

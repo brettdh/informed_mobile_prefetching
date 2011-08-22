@@ -290,9 +290,9 @@ class OldAdaptivePrefetchStrategy extends PrefetchStrategy {
         // TODO: implement the version that we converge on.
         
         EnergyAdaptiveCache cache = prefetch.getCache();
-        double[] promotionDelay = cache.getPromotionDelay();
+        double[] promotionDelay = cache.stats.getPromotionDelay();
         
-        double probability = 1.0 - cache.getPromotionRate();
+        double probability = 1.0 - cache.stats.getPromotionRate();
         double decider = prng.nextDouble();
         if (decider < probability) {
             if (promotionDelay != null) {
