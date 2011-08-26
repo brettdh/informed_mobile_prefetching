@@ -118,43 +118,5 @@ public class EnergyAdaptiveCache {
                                            energyBudget, dataBudget);
     }
     
-    private class LogOutputStream extends OutputStream {
-        // Implementation borrowed from:
-        //   http://tech.chitgoks.com/2008/03/17/android-showing-systemout-messages-to-console/
-        private ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        private String name;
-        
-        public LogOutputStream(String name)   {
-          this.name = name;
-        }
-        
-        @Override
-        public void write(int b) throws IOException {
-            if (((byte) b) == '\n') {
-                String s = new String(buffer.toByteArray());
-                Log.v(name, s);
-                buffer.reset();
-            } else {
-                buffer.write(b);
-            }
-        }
-    }
-    private LogOutputStream logStream = new LogOutputStream(TAG);
-    
-    public void printCacheStats() {
-        printCacheStatsToFile(logStream);
-    }
-    
-    public void printCacheStatsToFile(OutputStream out) {
-        PrintWriter writer = new PrintWriter(out, true);
-        writer.println("Cache stats:");
-        writer.format("  Items hinted: %d\n", stats.numHints());
-        writer.format("  Items fetched: %d\n", stats.numCompletedFetches());
-        writer.format("  Demand requests: %d\n", stats.numDemandRequests());
-        writer.format("  Cache hits: %d\n", stats.numHits());
-        writer.format("  Cache misses: %d\n", stats.numMisses());
-        writer.format("  Hit rate: %.02f %%\n", stats.getHitRate() * 100.0);
-    }
-    
     PrefetchStrategy strategy;
 }

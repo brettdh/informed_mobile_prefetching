@@ -1,6 +1,13 @@
 package edu.umich.eac;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintWriter;
+
 import org.apache.commons.math.stat.descriptive.SummaryStatistics;
+
+import android.util.Log;
 
 class CacheStats {
     // cache stats; access must be synchronized(this)
@@ -57,28 +64,66 @@ class CacheStats {
         return ret;
     }
 
-    public int numHints() {
+    synchronized int numHints() {
         return numHintedPrefetches;
     }
 
-    public int numCompletedFetches() {
+    synchronized int numCompletedFetches() {
         // TODO Auto-generated method stub
         return 0;
     }
 
-    public int numDemandRequests() {
+    synchronized int numDemandRequests() {
         return numDemandFetches;
     }
 
-    public int numHits() {
+    synchronized int numHits() {
         return numCacheHits;
     }
 
-    public int numMisses() {
+    synchronized int numMisses() {
         return numDemandFetches - numCacheHits;
     }
 
-    public double getHitRate() {
+    synchronized double getHitRate() {
         return ((double) numCacheHits) / ((double) numDemandFetches);
+    }
+    
+    private class LogOutputStream extends OutputStream {
+        // Implementation borrowed from:
+        //   http://tech.chitgoks.com/2008/03/17/android-showing-systemout-messages-to-console/
+        private ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        private String name;
+        
+        public LogOutputStream(String name)   {
+          this.name = name;
+        }
+        
+        @Override
+        public void write(int b) throws IOException {
+            if (((byte) b) == '\n') {
+                String s = new String(buffer.toByteArray());
+                Log.v(name, s);
+                buffer.reset();
+            } else {
+                buffer.write(b);
+            }
+        }
+    }
+    private LogOutputStream logStream = new LogOutputStream("CacheStats");
+    
+    synchronized void printCacheStats() {
+        printCacheStatsToFile(logStream);
+    }
+    
+    synchronized void printCacheStatsToFile(OutputStream out) {
+        PrintWriter writer = new PrintWriter(out, true);
+        writer.println("Cache stats:");
+        writer.format("  Items hinted: %d\n", numHints());
+        writer.format("  Items fetched: %d\n", numCompletedFetches());
+        writer.format("  Demand requests: %d\n", numDemandRequests());
+        writer.format("  Cache hits: %d\n", numHits());
+        writer.format("  Cache misses: %d\n", numMisses());
+        writer.format("  Hit rate: %.02f %%\n", getHitRate() * 100.0);
     }
 }
