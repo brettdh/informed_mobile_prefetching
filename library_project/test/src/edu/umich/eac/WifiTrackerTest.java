@@ -2,15 +2,14 @@ package edu.umich.eac;
 
 import java.util.Arrays;
 
+import edu.umich.eac.WifiTracker.Prediction;
+
 import android.test.InstrumentationTestCase;
 
-import edu.umich.eac.WifiBandwidthPredictor;
-import edu.umich.eac.WifiBandwidthPredictor.Prediction;
-
-public class WifiPredictorTest extends InstrumentationTestCase {
-    WifiBandwidthPredictor predictor;
+public class WifiTrackerTest extends InstrumentationTestCase {
+    WifiTracker predictor;
     protected void setUp() throws InterruptedException {
-        predictor = new WifiBandwidthPredictor();
+        predictor = new WifiTracker();
     }
     
     private void printPrediction(Prediction pred) {
@@ -32,7 +31,7 @@ public class WifiPredictorTest extends InstrumentationTestCase {
             printPrediction(future);
         }
         
-        double tooFar = WifiBandwidthPredictor.predictionHorizon + 5.0;
+        double tooFar = WifiTracker.predictionHorizon + 5.0;
         future = predictor.getFutureConditions(tooFar);
         assertTrue(future == null);
     }

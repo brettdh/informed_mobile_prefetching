@@ -7,8 +7,8 @@ import java.util.Date;
 import java.util.concurrent.PriorityBlockingQueue;
 
 import android.util.Log;
-import edu.umich.eac.WifiBandwidthPredictor.ConditionChange;
-import edu.umich.eac.WifiBandwidthPredictor.Prediction;
+import edu.umich.eac.WifiTracker.ConditionChange;
+import edu.umich.eac.WifiTracker.Prediction;
 
 public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private static final String TAG = AdaptivePrefetchStrategy.class.getName();
@@ -51,6 +51,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private int mEnergySpent;
     private ProcNetworkStats mDataSpent;
     
+    private NetworkStats currentNetworkStats;
     private NetworkStats averageNetworkStats;
     
     private MonitorThread monitorThread;
@@ -122,8 +123,18 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private double calculateCost(FetchFuture<?> prefetch) {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
-        return (energyWeight * estimateEnergyCost(prefetch) +
-                dataWeight * estimateDataCost(prefetch));
+        
+        double energyCostNow = estimateEnergyCost(prefetch, currentNetworkStats, currentNetworkPower());
+        double dataCostNow = currentDataCost(prefetch);
+        
+        double energyCostFuture = estimateEnergyCost(prefetch, averageNetworkStats, averageNetworkPower());
+        double dataCostFuture = averageDataCost(prefetch);
+        
+        double hintAccuracy = prefetch.getCache().stats.getPrefetchAccuracy();
+        double energyCostDelta = energyCostNow - (hintAccuracy * energyCostFuture);
+        double dataCostDelta = dataCostNow - (hintAccuracy * dataCostFuture);
+        
+        return (energyWeight * energyCostDelta) + (dataWeight * dataCostDelta);
     }
 
     private static final String ADAPTATION_NOT_IMPL_MSG =
@@ -146,23 +157,37 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             throw new Error(ADAPTATION_NOT_IMPL_MSG);
         }
     }
-
-    private double estimateEnergyCost(FetchFuture<?> prefetch) {
-        return prefetch.bytesToTransfer() * estimateEnergyPerByte();
+    
+    private double estimateEnergyCost(FetchFuture<?> prefetch, 
+                                      NetworkStats stats, 
+                                      double networkPowerWatts) {
+        double fetchTime = prefetch.estimateFetchTime(stats.bandwidthDown, 
+                                                      stats.bandwidthUp,
+                                                      stats.rttMillis);
+        return fetchTime * networkPowerWatts;
     }
-
-    private int estimateEnergyPerByte() {
-        // TODO: use a power model to estimate the cost of sending 
-        //       this given the available network(s).
+    
+    private double currentNetworkPower() {
+        // TODO: use a power model to pick the power coefficient based on available networks.
+        return 0;
+    }
+    
+    private double averageNetworkPower() {
+        // TODO: use a power model to calculate the average power coefficient 
+        //       based on network history.
         return 0;
     }
 
-    private double estimateDataCost(FetchFuture<?> prefetch) {
+    private double currentDataCost(FetchFuture<?> prefetch) {
         if (!isWifiAvailable()) {
             return prefetch.bytesToTransfer();
         } else {
             return 0;
         }
+    }
+    
+    private double averageDataCost(FetchFuture<?> prefetch) {
+        return prefetch.bytesToTransfer() * (1 - wifiTracker.availability());
     }
 
     private double calculateBenefit(FetchFuture<?> prefetch) {
@@ -171,12 +196,14 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         //   that the fetch might encounter, so estimateFetchTime represents the 
         //   average benefit of prefetching (taking size into account).
         NetworkStats networkStats = NetworkStats.getNetworkStats();
-        return prefetch.estimateFetchTime(networkStats.bandwidthDown,
-                                          networkStats.bandwidthUp,
-                                          networkStats.rttMillis);
+        double benefit = prefetch.estimateFetchTime(networkStats.bandwidthDown,
+                                                    networkStats.bandwidthUp,
+                                                    networkStats.rttMillis);
+        double accuracy = prefetch.getCache().stats.getPrefetchAccuracy();
+        return (accuracy * benefit);
     }
 
-    private WifiBandwidthPredictor wifiPredictor = new WifiBandwidthPredictor();
+    private WifiTracker wifiTracker = new WifiTracker();
     
     private double timeUntilGoal() {
         Date now = new Date();

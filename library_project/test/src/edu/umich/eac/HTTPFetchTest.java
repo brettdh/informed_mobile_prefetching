@@ -54,7 +54,7 @@ public class HTTPFetchTest extends InstrumentationTestCase {
         
     }
     
-    private class HTTPFetcher implements CacheFetcher<String> {
+    private class HTTPFetcher extends CacheFetcher<String> {
         private String myUrl;
         public HTTPFetcher(String url_) {
             myUrl = url_;

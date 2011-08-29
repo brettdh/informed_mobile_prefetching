@@ -38,7 +38,7 @@ public class SimpleNoNetworkTest extends InstrumentationTestCase {
         }
     }
     
-    private class FakeFetcher implements CacheFetcher<String> {
+    private class FakeFetcher extends CacheFetcher<String> {
         static final String msg = "This is the string you asked for.";
         
         long delaySeconds;

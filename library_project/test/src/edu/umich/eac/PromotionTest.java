@@ -48,7 +48,7 @@ public class PromotionTest extends InstrumentationTestCase {
         }
     }
     
-    private class PromotionFetcher implements CacheFetcher<String> {
+    private class PromotionFetcher extends CacheFetcher<String> {
         private static final String PREFETCH_MSG = "Got prefetch result";
         private static final String DEMAND_FETCH_MSG = "Got demand fetch result";
 

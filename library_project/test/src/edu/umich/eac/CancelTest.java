@@ -55,7 +55,7 @@ public class CancelTest extends InstrumentationTestCase {
         }
     }
     
-    private class CancelFetcher implements CacheFetcher<String> {
+    private class CancelFetcher extends CacheFetcher<String> {
         public String call(int labels) throws InterruptedException {
             // Never return; just wait to be cancelled.
             while (true) {

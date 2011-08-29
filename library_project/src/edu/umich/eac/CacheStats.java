@@ -30,6 +30,11 @@ class CacheStats {
         numHintedPrefetches++;
     }
     
+    synchronized <V> void onUnhintedDemandFetch(FetchFuture<V> fetchFuture) {
+        // an unhinted demand fetch decreases the overall accuracy of prefetch hints.
+        numHintedPrefetches++;
+    }
+    
     synchronized <V> void onDemandFetch(FetchFuture<V> fetchFuture) {
         // prefetch->fetch delay
         long promotion_delay = fetchFuture.millisSinceCreated();
@@ -47,7 +52,7 @@ class CacheStats {
         numCancelledFetches++;
     }
     
-    synchronized double getPromotionRate() {
+    synchronized double getPrefetchAccuracy() {
         if (numHintedPrefetches == 0) {
             return 1.0;
         }

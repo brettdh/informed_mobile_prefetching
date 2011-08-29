@@ -13,8 +13,8 @@ import android.util.Log;
 
 import edu.umich.eac.PrefetchStrategy;
 import edu.umich.eac.FetchFuture;
-import edu.umich.eac.WifiBandwidthPredictor.ConditionChange;
-import edu.umich.eac.WifiBandwidthPredictor.Prediction;
+import edu.umich.eac.WifiTracker.ConditionChange;
+import edu.umich.eac.WifiTracker.Prediction;
 
 /* Missing bits:
  * 1) How to estimate energy supply over a goal period
@@ -292,7 +292,7 @@ class OldAdaptivePrefetchStrategy extends PrefetchStrategy {
         EnergyAdaptiveCache cache = prefetch.getCache();
         double[] promotionDelay = cache.stats.getPromotionDelay();
         
-        double probability = 1.0 - cache.stats.getPromotionRate();
+        double probability = 1.0 - cache.stats.getPrefetchAccuracy();
         double decider = prng.nextDouble();
         if (decider < probability) {
             if (promotionDelay != null) {
@@ -344,7 +344,7 @@ class OldAdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
     
-    private WifiBandwidthPredictor wifiPredictor = new WifiBandwidthPredictor();
+    private WifiTracker wifiPredictor = new WifiTracker();
     
     private boolean cheaperToIssueNow(FetchFuture<?> prefetch, 
                                       Prediction prediction) {

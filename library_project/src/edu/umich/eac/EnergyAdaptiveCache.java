@@ -75,7 +75,7 @@ public class EnergyAdaptiveCache {
     private <V> Future<V> fetchNow(CacheFetcher<V> fetcher, boolean demand) {
         FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
         if (demand) {
-            stats.onDemandFetch(fetchFuture);
+            stats.onUnhintedDemandFetch(fetchFuture);
         }
         try {
             fetchFuture.startAsync(demand);

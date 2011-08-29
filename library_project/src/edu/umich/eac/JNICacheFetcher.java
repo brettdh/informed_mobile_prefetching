@@ -11,7 +11,7 @@ package edu.umich.eac;
 import edu.umich.eac.CacheFetcher;
 import android.util.Log;
 
-public class JNICacheFetcher implements CacheFetcher<SWIGTYPE_p_void> {
+public class JNICacheFetcher extends CacheFetcher<SWIGTYPE_p_void> {
   private int swigCPtr;
   protected boolean swigCMemOwn;
 
