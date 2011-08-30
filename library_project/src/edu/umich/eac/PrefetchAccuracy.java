@@ -67,8 +67,6 @@ class PrefetchAccuracy {
     public <V> void markDemandFetched(FetchFuture<V> prefetch) {
         int depth = prefetchHashes.indexOf(prefetch.hashCode());
         if (depth >= 0 && demandFetchedHints.contains(prefetch.hashCode())) {
-            // TODO: make sure this only gets incremented once per prefetch,
-            //       even if get() is called multiple times. (but it probably won't be.)
             accuracyByDepth.get(depth).utilizedPrefetchHints++;
             demandFetchedHints.add(prefetch.hashCode());
         } else {

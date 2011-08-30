@@ -7,9 +7,15 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Date;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.util.Log;
 
-public class WifiTracker {
+public class WifiTracker extends BroadcastReceiver {
     public class Prediction {
         public ConditionChange change;
         public double bwDown;
@@ -113,6 +119,16 @@ public class WifiTracker {
         return 0.0;
     }
     
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        assert(intent.getAction().equals(ConnectivityManager.CONNECTIVITY_ACTION));
+        NetworkInfo networkInfo = 
+                intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
+        if(networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
+            // TODO: continue.  track changes.
+        }
+    }
+
     // TODO: how much bandwidth change is appreciable?
     private static final double bwChangeThreshold = 50000;
     
