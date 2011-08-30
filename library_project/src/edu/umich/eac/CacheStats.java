@@ -20,18 +20,26 @@ class CacheStats {
     private int numHintedPrefetches = 0;
     private int numCancelledFetches = 0;
     
+    PrefetchAccuracy prefetchAccuracy = new PrefetchAccuracy();
+    
     public CacheStats() {
         // fake value to start so that prefetches aren't 
         //  immediately considered not promoted 
         promotionDelay.addValue(promotionDelayInit);
     }
     
+    synchronized <V> void onPrefetchIssued(FetchFuture<V> fetchFuture) {
+        prefetchAccuracy.addIssuedPrefetch(fetchFuture);
+    }
+    
     synchronized <V> void onPrefetchHint(FetchFuture<V> fetchFuture) {
+        prefetchAccuracy.addPrefetchHint(fetchFuture);
         numHintedPrefetches++;
     }
     
     synchronized <V> void onUnhintedDemandFetch(FetchFuture<V> fetchFuture) {
         // an unhinted demand fetch decreases the overall accuracy of prefetch hints.
+        prefetchAccuracy.addUnhintedPrefetch(fetchFuture);
         numHintedPrefetches++;
     }
     
@@ -39,6 +47,8 @@ class CacheStats {
         // prefetch->fetch delay
         long promotion_delay = fetchFuture.millisSinceCreated();
         promotionDelay.addValue(promotion_delay);
+        
+        prefetchAccuracy.markDemandFetched(fetchFuture);
         
         // promotion rate
         numDemandFetches++;
@@ -49,14 +59,12 @@ class CacheStats {
     }
     
     synchronized <V> void onFetchCancelled(FetchFuture<V> fetchFuture) {
+        prefetchAccuracy.removePrefetch(fetchFuture);
         numCancelledFetches++;
     }
     
     synchronized double getPrefetchAccuracy() {
-        if (numHintedPrefetches == 0) {
-            return 1.0;
-        }
-        return ((double) numDemandFetches) / ((double) numHintedPrefetches);
+        return prefetchAccuracy.getNextAccuracy();
     }
     
     /**

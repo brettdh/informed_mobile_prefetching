@@ -106,6 +106,10 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
         
         if (realFuture == null) {
+            if (!demand) {
+                cache.stats.onPrefetchIssued(this);
+            }
+            
             // haven't submitted it yet; better do it now
             realFuture = cache.submit(fetcher, fetcher.labels);
         }
@@ -153,5 +157,13 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     public int compareTo(FetchFuture<V> other) {
         // arbitrary order
         return (hashCode() - other.hashCode());
+    }
+    
+    protected void finalize() throws Throwable {
+        try {
+            cancel(true);
+        } finally {
+            super.finalize();
+        }
     }
 }
