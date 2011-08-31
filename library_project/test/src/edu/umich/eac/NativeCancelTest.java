@@ -1,9 +1,13 @@
 package edu.umich.eac;
 
+import android.content.Context;
 import android.test.InstrumentationTestCase;
 
 public class NativeCancelTest extends InstrumentationTestCase {
-    protected native void setUp();
+    protected void setUp() {
+        setUp(getInstrumentation().getContext());
+    }
+    protected native void setUp(Context context);
     protected native void tearDown();
     
     // These don't pass right now due to a weird uncaught 

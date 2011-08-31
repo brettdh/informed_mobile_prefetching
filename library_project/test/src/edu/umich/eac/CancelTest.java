@@ -16,7 +16,8 @@ public class CancelTest extends InstrumentationTestCase {
     private Future<String> future;
     
     protected void setUp() throws InterruptedException {
-        cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
+        cache = new EnergyAdaptiveCache(getInstrumentation().getContext(),
+                                        PrefetchStrategyType.AGGRESSIVE);
         fetcher = new CancelFetcher();
         future = cache.prefetch(fetcher);
         Thread.currentThread();

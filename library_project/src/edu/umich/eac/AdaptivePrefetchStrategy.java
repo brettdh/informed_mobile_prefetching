@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.util.Date;
 import java.util.concurrent.PriorityBlockingQueue;
 
+import android.content.Context;
 import android.util.Log;
 import edu.umich.eac.WifiTracker.ConditionChange;
 import edu.umich.eac.WifiTracker.Prediction;
@@ -57,13 +58,15 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private MonitorThread monitorThread;
     
     @Override
-    public void setup(Date goalTime, int energyBudget, int dataBudget) {
+    public void setup(Context context, Date goalTime, int energyBudget, int dataBudget) {
         mStartTime = new Date();
         mGoalTime = goalTime;
         mEnergyBudget = energyBudget;
         mDataBudget = dataBudget;
         mEnergySpent = 0;
         mDataSpent = new ProcNetworkStats(CELLULAR_IFNAME);
+        
+        wifiTracker = new WifiTracker(context);
         
         monitorThread = new MonitorThread();
         monitorThread.start();
@@ -203,8 +206,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return (accuracy * benefit);
     }
 
-    // TODO: get a Context to pass here.
-    private WifiTracker wifiTracker = new WifiTracker(null);
+    private WifiTracker wifiTracker;
     
     private double timeUntilGoal() {
         Date now = new Date();

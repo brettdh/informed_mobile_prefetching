@@ -48,9 +48,9 @@ static JNICacheFetcherPtr fetcher;
 static Future *future;
     
 CDECL JNIEXPORT void JNICALL 
-Java_edu_umich_eac_NativeCancelTest_setUp(JNIEnv *jenv, jobject jobj)
+Java_edu_umich_eac_NativeCancelTest_setUp(JNIEnv *jenv, jobject jobj, jobject context)
 {
-    cache = new EnergyAdaptiveCache(jenv, AGGRESSIVE);
+    cache = new EnergyAdaptiveCache(jenv, context, AGGRESSIVE);
     fetcher.reset(new CancelFetcher());
     future = cache->prefetch(fetcher);
     

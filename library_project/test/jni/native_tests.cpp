@@ -70,9 +70,9 @@ extern "C" {
 
 JNIEXPORT void JNICALL 
 Java_edu_umich_eac_NativeTest_testWithDelay(JNIEnv *jenv, jobject jobj,
-                                                  jint delaySecs)
+                                            jobject context, jint delaySecs)
 {
-    EnergyAdaptiveCache cache(jenv, AGGRESSIVE);
+    EnergyAdaptiveCache cache(jenv, context, AGGRESSIVE);
 
     bool futureNotDoneYet;
     JNICacheFetcherPtr ptr(new FakeFetcher(delaySecs));

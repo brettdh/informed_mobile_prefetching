@@ -17,7 +17,8 @@ public class HTTPFetchTest extends InstrumentationTestCase {
     private EnergyAdaptiveCache cache;
     
     protected void setUp() {
-        cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
+        cache = new EnergyAdaptiveCache(getInstrumentation().getContext(),
+                                        PrefetchStrategyType.AGGRESSIVE);
     }
     
     public void testFetch() {

@@ -176,6 +176,12 @@ public class WifiTracker extends BroadcastReceiver {
             context.registerReceiver(this, filter);
         }
     }
+    
+    protected void finalize() throws Throwable {
+        if (context != null) {
+            context.unregisterReceiver(this);
+        }
+    }
 
     private Context context;
     private long wifiAvailableMillis = 0;
