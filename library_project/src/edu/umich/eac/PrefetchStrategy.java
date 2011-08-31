@@ -3,6 +3,8 @@ package edu.umich.eac;
 import java.util.Date;
 import java.util.Map;
 import java.util.EnumMap;
+
+import android.content.Context;
 import edu.umich.eac.PrefetchStrategyType;
 import edu.umich.eac.AggressivePrefetchStrategy;
 import edu.umich.eac.ConservativePrefetchStrategy;
@@ -20,9 +22,10 @@ abstract class PrefetchStrategy {
      *        (note: units are currently %-battery.)
      * @param dataGoal Bytes of mobile data spendable before goalTime
      */
-    public void setup(Date goalTime, int energyGoal, int dataGoal) {}
+    public void setup(Context context, Date goalTime, int energyGoal, int dataGoal) {}
     
-    public static PrefetchStrategy create(PrefetchStrategyType type,
+    public static PrefetchStrategy create(Context context,
+                                          PrefetchStrategyType type,
                                           Date goalTime,
                                           int energyGoal,
                                           int dataGoal) {
@@ -35,7 +38,7 @@ abstract class PrefetchStrategy {
         } catch (InstantiationException e) {
             e.printStackTrace();
         }
-        strategy.setup(goalTime, energyGoal, dataGoal);
+        strategy.setup(context, goalTime, energyGoal, dataGoal);
         return strategy;
     }
     

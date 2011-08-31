@@ -16,7 +16,8 @@ public class PriorityTest extends InstrumentationTestCase {
     private List<Future<String>> futures = new LinkedList<Future<String>>();
     
     protected void setUp() throws InterruptedException {
-        cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
+        cache = new EnergyAdaptiveCache(getInstrumentation().getContext(),
+                                        PrefetchStrategyType.AGGRESSIVE);
         
         for (int i = 0; i < 20; ++i) {
             Future<String> future = cache.prefetch(new CancelFetcher());

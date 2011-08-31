@@ -1,19 +1,23 @@
 package edu.umich.eac;
 
+import android.content.Context;
 import android.test.InstrumentationTestCase;
 
 public class NativeTest extends InstrumentationTestCase {
-    protected void setUp() {}
+    private Context context;
+    protected void setUp() {
+        this.context = getInstrumentation().getContext();
+    }
 
     public void testImmediateGet() {
-        testWithDelay(0);
+        testWithDelay(context, 0);
     }
     
     public void testDelayedGet() {
-        testWithDelay(5);
+        testWithDelay(context, 5);
     }
 
-    private native void testWithDelay(long delaySecs);
+    private native void testWithDelay(Context context, long delaySecs);
 
     static {
         System.loadLibrary("eac_native");

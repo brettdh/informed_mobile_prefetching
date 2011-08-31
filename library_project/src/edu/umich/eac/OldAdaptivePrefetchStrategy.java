@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.PriorityBlockingQueue;
 
+import android.content.Context;
 import android.util.Log;
 
 import edu.umich.eac.PrefetchStrategy;
@@ -100,7 +101,7 @@ class OldAdaptivePrefetchStrategy extends PrefetchStrategy {
     private MonitorThread monitorThread;
     
     @Override
-    public void setup(Date goalTime, int energyBudget, int dataBudget) {
+    public void setup(Context context, Date goalTime, int energyBudget, int dataBudget) {
         mStartTime = new Date();
         mGoalTime = goalTime;
         mEnergyBudget = energyBudget;
@@ -344,7 +345,7 @@ class OldAdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
     
-    private WifiTracker wifiPredictor = new WifiTracker();
+    private WifiTracker wifiPredictor = new WifiTracker(null); // XXX
     
     private boolean cheaperToIssueNow(FetchFuture<?> prefetch, 
                                       Prediction prediction) {

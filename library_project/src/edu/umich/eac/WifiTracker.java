@@ -7,9 +7,17 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.util.Date;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.wifi.WifiManager;
+import android.os.Bundle;
 import android.util.Log;
 
-public class WifiTracker {
+public class WifiTracker extends BroadcastReceiver {
     public class Prediction {
         public ConditionChange change;
         public double bwDown;
@@ -108,10 +116,78 @@ public class WifiTracker {
      * wifi has been available.
      * @return Wifi availability, in the range [0.0, 1.0].
      */
-    public double availability() {
-        // TODO: implement
-        return 0.0;
+    public synchronized double availability() {
+        // XXX: will always return zero if null context is passed to constructor.
+        Date now = new Date();
+        long millisSinceCreation = now.getTime() - trackerCreated.getTime();
+        if (millisSinceCreation == 0) {
+            return 0.0;
+        }
+        long availableMillis = wifiAvailableMillis;
+        if (wifiAvailable) {
+            availableMillis += (now.getTime() - lastEvent.getTime());
+        }
+        
+        return ((double) availableMillis) / ((double) millisSinceCreation);
     }
+    
+    @Override
+    public void onReceive(Context unused, Intent intent) {
+        Log.d(TAG, "Got update: intent = " + intent.toString());
+        Bundle extras = intent.getExtras();
+        if (extras != null) {
+            for (String key : extras.keySet()) {
+                Log.d(TAG, key + "=>" + extras.get(key));
+            }
+        }
+        assert(intent.getAction().equals(ConnectivityManager.CONNECTIVITY_ACTION));
+        NetworkInfo networkInfo = 
+                intent.getParcelableExtra(ConnectivityManager.EXTRA_NETWORK_INFO);
+        if (networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
+            updateAvailability(networkInfo);
+        }
+    }
+
+    private synchronized void updateAvailability(NetworkInfo networkInfo) {
+        boolean nowConnected = networkInfo.isConnected();
+        if (nowConnected) {
+            if (!wifiAvailable) {
+                lastEvent = new Date();
+                wifiAvailable = true;
+            }
+        } else {
+            if (wifiAvailable) {
+                Date now = new Date();
+                wifiAvailableMillis += (now.getTime() - lastEvent.getTime());
+                lastEvent = now;
+                wifiAvailable = false;
+            }
+        }
+    }
+    
+    public WifiTracker(Context context) {
+        this.context = context;
+        trackerCreated = new Date();
+        lastEvent = trackerCreated;
+        
+        if (context != null) {
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+            context.registerReceiver(this, filter);
+        }
+    }
+    
+    protected void finalize() throws Throwable {
+        if (context != null) {
+            context.unregisterReceiver(this);
+        }
+    }
+
+    private Context context;
+    private long wifiAvailableMillis = 0;
+    private Date trackerCreated;
+    private Date lastEvent;
+    private boolean wifiAvailable = false;
     
     // TODO: how much bandwidth change is appreciable?
     private static final double bwChangeThreshold = 50000;

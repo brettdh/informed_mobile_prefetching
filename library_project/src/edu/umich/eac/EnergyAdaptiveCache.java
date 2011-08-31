@@ -18,6 +18,7 @@ import java.util.TreeSet;
 
 import org.apache.commons.math.stat.descriptive.SummaryStatistics;
 
+import android.content.Context;
 import android.util.Log;
 
 import edu.umich.eac.FetchFuture;
@@ -103,18 +104,20 @@ public class EnergyAdaptiveCache {
     public static final int NUM_THREADS = 10;
     
     /* Should only call this one if the strategy ignores the params. */
-    public EnergyAdaptiveCache(PrefetchStrategyType strategyType) {
-        this(strategyType, new Date(), 0, 0);
+    public EnergyAdaptiveCache(Context context, PrefetchStrategyType strategyType) {
+        this(context, strategyType, System.currentTimeMillis(), 0, 0);
     }
-    public EnergyAdaptiveCache(PrefetchStrategyType strategyType,
-                               Date goalTime,
+    public EnergyAdaptiveCache(Context context,
+                               PrefetchStrategyType strategyType,
+                               long goalTimeEpochMillis,
                                int energyBudget,
                                int dataBudget) {
         Log.d(TAG, "Created a new EnergyAdaptiveCache");
         bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
         fg_executor = Executors.newCachedThreadPool();
 
-        strategy = PrefetchStrategy.create(strategyType, goalTime, 
+        Date goalTime = new Date(goalTimeEpochMillis);
+        strategy = PrefetchStrategy.create(context, strategyType, goalTime, 
                                            energyBudget, dataBudget);
     }
     

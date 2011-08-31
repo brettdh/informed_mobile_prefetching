@@ -16,7 +16,8 @@ public class PromotionTest extends InstrumentationTestCase {
     private Future<String> future;
     
     protected void setUp() throws InterruptedException {
-        cache = new EnergyAdaptiveCache(PrefetchStrategyType.AGGRESSIVE);
+        cache = new EnergyAdaptiveCache(getInstrumentation().getContext(),
+                                        PrefetchStrategyType.AGGRESSIVE);
         fetcher = new PromotionFetcher();
         future = cache.prefetchNow(fetcher);
         Thread.currentThread();

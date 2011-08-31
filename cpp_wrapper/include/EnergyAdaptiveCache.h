@@ -20,7 +20,9 @@ enum PrefetchStrategyType getEnumValue(const char *typeStr);
 
 class EnergyAdaptiveCache {
 public:
-    EnergyAdaptiveCache(JNIEnv *env, PrefetchStrategyType type);
+    EnergyAdaptiveCache(JNIEnv *env, jobject context, PrefetchStrategyType type);
+    EnergyAdaptiveCache(JNIEnv *env, jobject context, PrefetchStrategyType type,
+                        struct timeval goalTime, int energyBudget, int dataBudget);
     ~EnergyAdaptiveCache();
     
     Future * prefetch(JNICacheFetcherPtr fetcher);
@@ -51,6 +53,8 @@ public:
         static initer my_initer;
     };
 private:
+    void init(JNIEnv *env, jobject context, PrefetchStrategyType type,
+              struct timeval goalTime, int energyBudget, int dataBudget);
     Future * prefetch(JNICacheFetcherPtr fetcher, bool now, bool demand);
     
     JavaVM *vm;

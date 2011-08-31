@@ -123,11 +123,32 @@ getEnumValue(JNIEnv *jenv, enum PrefetchStrategyType type)
 static const char *prefetchMethodSig = 
     "(Ledu/umich/eac/CacheFetcher;)Ljava/util/concurrent/Future;";
 
-EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv, 
+EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv, jobject context,
                                          enum PrefetchStrategyType type)
-    : vm(NULL), cacheClazz(NULL), realCacheObj(NULL), prefetchMID(NULL) 
+{
+    struct timeval dummy;
+    gettimeofday(&dummy, NULL);
+    init(jenv, context, type, dummy, 0, 0);
+}
+
+EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv, jobject context,
+                                         enum PrefetchStrategyType type,
+                                         struct timeval goalTime,
+                                         int energyBudget, int dataBudget)
+{
+    init(jenv, context, type, goalTime, energyBudget, dataBudget);
+}
+
+void 
+EnergyAdaptiveCache::init(JNIEnv *jenv, jobject context,
+                          enum PrefetchStrategyType type,
+                          struct timeval goalTime, int energyBudget, int dataBudget)
 {
     vm = NULL;
+    cacheClazz = NULL;
+    realCacheObj = NULL;
+    prefetchMID = NULL;
+    
     jint rc = jenv->GetJavaVM(&vm);
     if (rc != 0) {
         fatal_error("Can't get the Java VM");
@@ -151,13 +172,16 @@ EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv,
         fatal_error("Can't find fetch method");
     }
     jmethodID ctor = jenv->GetMethodID(
-        cacheClazz, "<init>", "(Ledu/umich/eac/PrefetchStrategyType;)V"
+        cacheClazz, "<init>", 
+        "(Landroid/content/Context;Ledu/umich/eac/PrefetchStrategyType;JII)V"
     );
     if (!ctor || JAVA_EXCEPTION_OCCURRED(jenv)) {
         fatal_error("Can't find EAC constructor");
     }
     jobject prefetchType = getEnumValue(jenv, type);
-    jobject local = jenv->NewObject(cacheClazz, ctor, prefetchType);
+    jobject local = jenv->NewObject(cacheClazz, ctor, context, prefetchType,
+                                    goalTime.tv_sec * 1000 + goalTime.tv_usec / 1000,
+                                    energyBudget, dataBudget);
     if (!local || JAVA_EXCEPTION_OCCURRED(jenv) ||
         !(realCacheObj = jenv->NewGlobalRef(local))) {
         fatal_error("Can't create EnergyAdaptiveCache "
