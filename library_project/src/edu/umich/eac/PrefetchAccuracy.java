@@ -10,14 +10,14 @@ class PrefetchAccuracy {
      * @return accuracy in the range [0.0, 1.0].
      */
     public double getNextAccuracy() {
-        final int nextDepth = prefetchHashes.size() + 1;
-        if (nextDepth > accuracyByDepth.size()) {
+        final int nextDepth = prefetchHashes.size();
+        if (nextDepth >= accuracyByDepth.size()) {
             return 1.0;
         }
         
         int hintedPrefetches = emptyCacheHintedPrefetches;
         int utilizedPrefetchHints = 0;
-        for (int i = 0; i < nextDepth; ++i) {
+        for (int i = 0; i <= nextDepth; ++i) {
             final AccuracyAtDepth accuracy = accuracyByDepth.get(i);
             hintedPrefetches += accuracy.hintedPrefetches;
             utilizedPrefetchHints += accuracy.utilizedPrefetchHints;
@@ -46,6 +46,10 @@ class PrefetchAccuracy {
         // avoid keeping references to the actual object,
         //  as that would prevent it from being garbage-collected.
         prefetchHashes.add(prefetch.hashCode());
+        if (prefetchHashes.size() > accuracyByDepth.size()) {
+            accuracyByDepth.add(new AccuracyAtDepth());
+            assert(prefetchHashes.size() == accuracyByDepth.size());
+        }
     }
     
     /**
@@ -65,10 +69,11 @@ class PrefetchAccuracy {
      * @param prefetch
      */
     public <V> void markDemandFetched(FetchFuture<V> prefetch) {
-        int depth = prefetchHashes.indexOf(prefetch.hashCode());
-        if (depth >= 0 && demandFetchedHints.contains(prefetch.hashCode())) {
+        final int prefetchId = prefetch.hashCode();
+        int depth = prefetchHashes.indexOf(prefetchId);
+        if (depth >= 0 && !demandFetchedHints.contains(prefetchId)) {
             accuracyByDepth.get(depth).utilizedPrefetchHints++;
-            demandFetchedHints.add(prefetch.hashCode());
+            demandFetchedHints.add(prefetchId);
         } else {
             // weird. I shouldn't see the demand fetch if the prefetch doesn't exist
             // or was already removed.
