@@ -203,7 +203,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return (accuracy * benefit);
     }
 
-    private WifiTracker wifiTracker = new WifiTracker();
+    // TODO: get a Context to pass here.
+    private WifiTracker wifiTracker = new WifiTracker(null);
     
     private double timeUntilGoal() {
         Date now = new Date();

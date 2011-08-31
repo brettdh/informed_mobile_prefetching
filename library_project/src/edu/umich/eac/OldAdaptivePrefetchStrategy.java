@@ -344,7 +344,7 @@ class OldAdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
     
-    private WifiTracker wifiPredictor = new WifiTracker();
+    private WifiTracker wifiPredictor = new WifiTracker(null); // XXX
     
     private boolean cheaperToIssueNow(FetchFuture<?> prefetch, 
                                       Prediction prediction) {
