@@ -52,8 +52,10 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private int mEnergySpent;
     private ProcNetworkStats mDataSpent;
     
+    // TODO: update at the right times!
     private NetworkStats currentNetworkStats;
     private NetworkStats averageNetworkStats;
+    private int numNetworkStatsUpdates;
     
     private MonitorThread monitorThread;
     
@@ -67,6 +69,10 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         mDataSpent = new ProcNetworkStats(CELLULAR_IFNAME);
         
         wifiTracker = new WifiTracker(context);
+        
+        currentNetworkStats = NetworkStats.getNetworkStats();
+        averageNetworkStats = NetworkStats.getNetworkStats();
+        numNetworkStatsUpdates = 1;
         
         monitorThread = new MonitorThread();
         monitorThread.start();
@@ -82,10 +88,14 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         @Override
         public void run() {
             final int SAMPLE_PERIOD_MS = 200;
+            Date lastNetworkStatsUpdate = new Date();
             while (true) {
                 // TODO: update energy stats
                 
                 mDataSpent.updateStats();
+                if (System.currentTimeMillis() - lastNetworkStatsUpdate.getTime() > 1000) {
+                    updateNetworkStats();
+                }
                 
                 try {
                     PrefetchTask task = deferredPrefetches.take();
@@ -99,6 +109,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                 }
             }
         }
+    }
+
+    private synchronized void updateNetworkStats() {
+        currentNetworkStats = NetworkStats.getNetworkStats();
+        averageNetworkStats.updateAsAverage(currentNetworkStats, numNetworkStatsUpdates);
+        numNetworkStatsUpdates++;
     }
     
     @Override
