@@ -12,15 +12,20 @@ class PrefetchAccuracy {
     public double getNextAccuracy() {
         final int nextDepth = prefetchHashes.size();
         if (nextDepth >= accuracyByDepth.size()) {
+            // XXX: adjust this.
             return 1.0;
         }
         
-        int hintedPrefetches = emptyCacheHintedPrefetches;
+        int hintedPrefetches = 0;
         int utilizedPrefetchHints = 0;
         for (int i = 0; i <= nextDepth; ++i) {
             final AccuracyAtDepth accuracy = accuracyByDepth.get(i);
             hintedPrefetches += accuracy.hintedPrefetches;
             utilizedPrefetchHints += accuracy.utilizedPrefetchHints;
+        }
+        if (utilizedPrefetchHints == 0) {
+            // TODO: better 'smoothing.'
+            return 0.25;
         }
         return ((double) utilizedPrefetchHints) / ((double) hintedPrefetches);
     }
@@ -30,12 +35,17 @@ class PrefetchAccuracy {
      * @param prefetch
      */
     public <V> void addPrefetchHint(FetchFuture<V> prefetch) {
-        int depth = prefetchHashes.size() - 1;
-        if (depth == -1) {
-            emptyCacheHintedPrefetches++;
-        } else {
-            accuracyByDepth.get(depth).hintedPrefetches++;
+        int depth = prefetchHashes.size();
+        
+        // valid assertion because addPrefetchHint MUST precede addIssuedPrefetch
+        //  and accuracyByDepth never shrinks; it only grows.
+        // TODO: check for this ordering explicitly?
+        assert(depth <= accuracyByDepth.size());
+        
+        if (depth == accuracyByDepth.size()) {
+            accuracyByDepth.add(new AccuracyAtDepth());
         }
+        accuracyByDepth.get(depth).hintedPrefetches++;
     }
     
     /**
@@ -46,10 +56,9 @@ class PrefetchAccuracy {
         // avoid keeping references to the actual object,
         //  as that would prevent it from being garbage-collected.
         prefetchHashes.add(prefetch.hashCode());
-        if (prefetchHashes.size() > accuracyByDepth.size()) {
-            accuracyByDepth.add(new AccuracyAtDepth());
-            assert(prefetchHashes.size() == accuracyByDepth.size());
-        }
+        
+        // valid assertion because addPrefetchHint MUST precede addIssuedPrefetch
+        assert(prefetchHashes.size() <= accuracyByDepth.size());
     }
     
     /**
@@ -59,8 +68,11 @@ class PrefetchAccuracy {
      */
     public <V> void addUnhintedPrefetch(FetchFuture<V> fetch) {
         // cache miss; contributes to inaccuracy of prefetch hints
-        // treat as a hint that will never be utilized
-        addPrefetchHint(fetch);
+        // treat as a hint that was already issued (but not recorded) and will never be utilized
+        if (prefetchHashes.size() == accuracyByDepth.size()) {
+            accuracyByDepth.add(new AccuracyAtDepth());
+        }
+        addIssuedPrefetch(fetch);
     }
     
     /**
@@ -104,6 +116,4 @@ class PrefetchAccuracy {
     private ArrayList<AccuracyAtDepth> accuracyByDepth;
     private ArrayList<Integer> prefetchHashes;
     private Set<Integer> demandFetchedHints;
-    
-    private int emptyCacheHintedPrefetches = 0;
 }
