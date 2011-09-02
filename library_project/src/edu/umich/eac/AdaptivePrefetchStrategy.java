@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Date;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import android.content.Context;
 import android.util.Log;
@@ -12,7 +14,7 @@ import edu.umich.eac.WifiTracker.ConditionChange;
 import edu.umich.eac.WifiTracker.Prediction;
 
 public class AdaptivePrefetchStrategy extends PrefetchStrategy {
-    private static final String TAG = AdaptivePrefetchStrategy.class.getName();
+    static final String TAG = AdaptivePrefetchStrategy.class.getName();
 
     // TODO: determine this from Android APIs
     private static final String CELLULAR_IFNAME = "rmnet0";
@@ -98,7 +100,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                 }
                 
                 try {
-                    PrefetchTask task = deferredPrefetches.take();
+                    PrefetchTask task = 
+                        deferredPrefetches.poll(SAMPLE_PERIOD_MS, TimeUnit.MILLISECONDS);
+                    if (task == null) {
+                        // timed out
+                        continue;
+                    }
                     if (task.reevaluate()) {
                         continue;
                     }
@@ -280,12 +287,15 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         deferredPrefetches.remove(prefetch);
         prefetch.addLabels(IntNWLabels.MIN_ENERGY);
         prefetch.addLabels(IntNWLabels.MIN_COST);
-        prefetch.startAsync(false);
+        try {
+            prefetch.startAsync(false);
+        } catch (CancellationException e) {
+            Log.e(TAG, "Prefetch cancelled; discarding");
+        }
     }
 
     private void deferDecision(FetchFuture<?> prefetch) {
         PrefetchTask task = new PrefetchTask(prefetch);
         deferredPrefetches.add(task);
     }
-
 }

@@ -9,8 +9,8 @@ class PrefetchAccuracy {
      * Computes the accuracy of a prefetch cache with one more prefetch in it.
      * @return accuracy in the range [0.0, 1.0].
      */
-    public double getNextAccuracy() {
-        final int nextDepth = prefetchHashes.size();
+    public synchronized double getNextAccuracy() {
+        final int nextDepth = issuedPrefetchHashes.size();
         if (nextDepth >= accuracyByDepth.size()) {
             // XXX: adjust this.
             return 1.0;
@@ -34,12 +34,13 @@ class PrefetchAccuracy {
      * Call when the application hints a prefetch.
      * @param prefetch
      */
-    public <V> void addPrefetchHint(FetchFuture<V> prefetch) {
-        int depth = prefetchHashes.size();
+    public synchronized <V> void addPrefetchHint(FetchFuture<V> prefetch) {
+        hintedPrefetches.add(prefetch.hashCode());
+        
+        int depth = issuedPrefetchHashes.size();
         
         // valid assertion because addPrefetchHint MUST precede addIssuedPrefetch
         //  and accuracyByDepth never shrinks; it only grows.
-        // TODO: check for this ordering explicitly?
         assert(depth <= accuracyByDepth.size());
         
         if (depth == accuracyByDepth.size()) {
@@ -52,13 +53,18 @@ class PrefetchAccuracy {
      * Call when the prefetch strategy issues a prefetch.
      * @param prefetch
      */
-    public <V> void addIssuedPrefetch(FetchFuture<V> prefetch) {
+    public synchronized <V> void addIssuedPrefetch(FetchFuture<V> prefetch) {
+        assert(hintedPrefetches.contains(prefetch.hashCode()));
+        
         // avoid keeping references to the actual object,
         //  as that would prevent it from being garbage-collected.
-        prefetchHashes.add(prefetch.hashCode());
+        issuedPrefetchHashes.add(prefetch.hashCode());
         
         // valid assertion because addPrefetchHint MUST precede addIssuedPrefetch
-        assert(prefetchHashes.size() <= accuracyByDepth.size());
+        assert(issuedPrefetchHashes.size() <= accuracyByDepth.size());
+        if (issuedPrefetchHashes.size() == accuracyByDepth.size()) {
+            accuracyByDepth.add(new AccuracyAtDepth());
+        }
     }
     
     /**
@@ -66,12 +72,13 @@ class PrefetchAccuracy {
      * not first hinted as a prefetch.
      * @param fetch
      */
-    public <V> void addUnhintedPrefetch(FetchFuture<V> fetch) {
+    public synchronized <V> void addUnhintedPrefetch(FetchFuture<V> fetch) {
         // cache miss; contributes to inaccuracy of prefetch hints
         // treat as a hint that was already issued (but not recorded) and will never be utilized
-        if (prefetchHashes.size() == accuracyByDepth.size()) {
+        if (issuedPrefetchHashes.size() == accuracyByDepth.size()) {
             accuracyByDepth.add(new AccuracyAtDepth());
         }
+        hintedPrefetches.add(fetch.hashCode());
         addIssuedPrefetch(fetch);
     }
     
@@ -80,11 +87,11 @@ class PrefetchAccuracy {
      * that it has hinted before.
      * @param prefetch
      */
-    public <V> void markDemandFetched(FetchFuture<V> prefetch) {
+    public synchronized <V> void markDemandFetched(FetchFuture<V> prefetch) {
         final int prefetchId = prefetch.hashCode();
-        int depth = prefetchHashes.indexOf(prefetchId);
+        int depth = issuedPrefetchHashes.indexOf(prefetchId);
         if (depth >= 0 && !demandFetchedHints.contains(prefetchId)) {
-            accuracyByDepth.get(depth).utilizedPrefetchHints++;
+            accuracyByDepth.get(depth).utilizedPrefetchHints++; //TODO: fix ArrayIndexOutOfBoundsException
             demandFetchedHints.add(prefetchId);
         } else {
             // weird. I shouldn't see the demand fetch if the prefetch doesn't exist
@@ -98,14 +105,15 @@ class PrefetchAccuracy {
      * implicitly via garbage collection (which just calls cancel).
      * @param prefetch
      */
-    public <V> void removePrefetch(FetchFuture<V> prefetch) {
-        prefetchHashes.remove(Integer.valueOf(prefetch.hashCode()));
+    public synchronized <V> void removePrefetch(FetchFuture<V> prefetch) {
+        issuedPrefetchHashes.remove(Integer.valueOf(prefetch.hashCode()));
         demandFetchedHints.remove(Integer.valueOf(prefetch.hashCode()));
     }
     
     public PrefetchAccuracy() {
         accuracyByDepth = new ArrayList<AccuracyAtDepth>();
-        prefetchHashes = new ArrayList<Integer>();
+        issuedPrefetchHashes = new ArrayList<Integer>();
+        hintedPrefetches = new HashSet<Integer>();
         demandFetchedHints = new HashSet<Integer>();
     }
     
@@ -114,6 +122,7 @@ class PrefetchAccuracy {
         int hintedPrefetches;
     }
     private ArrayList<AccuracyAtDepth> accuracyByDepth;
-    private ArrayList<Integer> prefetchHashes;
+    private ArrayList<Integer> issuedPrefetchHashes;
+    private Set<Integer> hintedPrefetches;
     private Set<Integer> demandFetchedHints;
 }

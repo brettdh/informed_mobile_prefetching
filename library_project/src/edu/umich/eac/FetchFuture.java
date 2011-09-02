@@ -10,6 +10,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import android.util.Log;
+
 import edu.umich.eac.CacheFetcher;
 import edu.umich.eac.IntNWLabels;
 
@@ -161,6 +163,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     
     protected void finalize() throws Throwable {
         try {
+            Log.d(AdaptivePrefetchStrategy.TAG, "Cancelling prefetch because it was garbage-collected");
             cancel(true);
         } finally {
             super.finalize();
