@@ -42,9 +42,9 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         public V call() throws Exception {
             V result = labeledFetcher.call(labels);
             if (isDemand()) {
-                cache.stats.onPrefetchDone(future);
-            } else {
                 cache.stats.onDemandFetchDone(future);
+            } else {
+                cache.stats.onPrefetchDone(future);
             }
             return result;
         }
