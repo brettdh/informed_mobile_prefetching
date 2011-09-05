@@ -91,6 +91,7 @@ class PrefetchAccuracy {
         final int prefetchId = prefetch.hashCode();
         int depth = issuedPrefetchHashes.indexOf(prefetchId);
         if (depth >= 0 && !demandFetchedHints.contains(prefetchId)) {
+            assert(depth < accuracyByDepth.size());
             accuracyByDepth.get(depth).utilizedPrefetchHints++; //TODO: fix ArrayIndexOutOfBoundsException
             demandFetchedHints.add(prefetchId);
         } else {

@@ -1,6 +1,7 @@
 package edu.umich.eac;
 
-import junit.framework.TestCase;
+import android.test.InstrumentationTestCase;
+
 
 /*
  * Assumptions:
@@ -13,18 +14,21 @@ import junit.framework.TestCase;
  *  the accuracy of the minimum cache size that contains the
  *  prefetched data item. 
  */
-public class PrefetchAccuracyTest extends TestCase {
+public class PrefetchAccuracyTest extends InstrumentationTestCase {
     PrefetchAccuracy accuracy;
+    EnergyAdaptiveCache cache;
     
     private class FakeFuture extends FetchFuture<Integer> {
-        FakeFuture() {
-            super(null, null);
+        FakeFuture(EnergyAdaptiveCache cache) {
+            super(null, cache);
         }
     }
     
     @Override
     protected void setUp() {
         accuracy = new PrefetchAccuracy();
+        cache = new EnergyAdaptiveCache(getInstrumentation().getContext(),
+                                        PrefetchStrategyType.CONSERVATIVE);
     }
     
     public void testInitAccuracy() {
@@ -34,7 +38,7 @@ public class PrefetchAccuracyTest extends TestCase {
     public void testSimpleAccuracy() {
         FakeFuture[] futures = new FakeFuture[2];
         for (int i = 0; i < futures.length; ++i) {
-            futures[i] = new FakeFuture();
+            futures[i] = new FakeFuture(cache);
         }
         accuracy.addPrefetchHint(futures[0]);
         accuracy.addIssuedPrefetch(futures[0]);
@@ -75,7 +79,7 @@ public class PrefetchAccuracyTest extends TestCase {
     public void testAccuracyWithDepth() {
         FakeFuture[] futures = new FakeFuture[4];
         for (int i = 0; i < futures.length; ++i) {
-            futures[i] = new FakeFuture();
+            futures[i] = new FakeFuture(cache);
         }
     
         for (int i = 0; i < 3; ++i) {
@@ -132,7 +136,7 @@ public class PrefetchAccuracyTest extends TestCase {
      * It should instead return some value 
      */
     public void testSmoothing() {
-        FakeFuture future = new FakeFuture();
+        FakeFuture future = new FakeFuture(cache);
         
         assertTrue(accuracy.getNextAccuracy() > 0.0);
         accuracy.addPrefetchHint(future);

@@ -77,6 +77,10 @@ public class EnergyAdaptiveCache {
         FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
         if (demand) {
             stats.onUnhintedDemandFetch(fetchFuture);
+        } else {
+            // only to preserve the stats invariant of hint-before-fetch
+            //  also, only called from prefetchNow, so only happens in tests.
+            stats.onPrefetchHint(fetchFuture);
         }
         try {
             fetchFuture.startAsync(demand);

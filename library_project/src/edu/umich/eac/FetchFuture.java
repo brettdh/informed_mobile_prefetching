@@ -28,8 +28,10 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     private class CallableWrapperFetcher implements Callable<V> {
         int labels;
         CacheFetcher<V> labeledFetcher;
-        CallableWrapperFetcher(CacheFetcher<V> fetcher_) {
+        FetchFuture<V> future;
+        CallableWrapperFetcher(CacheFetcher<V> fetcher_, FetchFuture<V> future_) {
             labeledFetcher = fetcher_;
+            future = future_;
             labels = IntNWLabels.BACKGROUND;
         }
         
@@ -38,7 +40,13 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
 
         public V call() throws Exception {
-            return labeledFetcher.call(labels);
+            V result = labeledFetcher.call(labels);
+            if (isDemand()) {
+                cache.stats.onPrefetchDone(future);
+            } else {
+                cache.stats.onDemandFetchDone(future);
+            }
+            return result;
         }
     }
     
@@ -60,7 +68,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
 
     FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_) {
         realFuture = null;
-        fetcher = new CallableWrapperFetcher(fetcher_);
+        fetcher = new CallableWrapperFetcher(fetcher_, this);
         cancelled = false;
         cache = cache_;
         timeCreated = new Date();
@@ -126,6 +134,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         cache.stats.onDemandFetch(this);
         establishFuture(true);
         V result = realFuture.get();
+        cache.stats.onDemandFetchDone(this);
         return result;
     }
     
@@ -135,6 +144,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         cache.stats.onDemandFetch(this);
         establishFuture(true);
         V result = realFuture.get(timeout, unit);
+        cache.stats.onDemandFetchDone(this);
         return result;
     }
     
