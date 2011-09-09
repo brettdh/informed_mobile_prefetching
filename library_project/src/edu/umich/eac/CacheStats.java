@@ -99,7 +99,7 @@ class CacheStats {
     }
     
     synchronized double getPrefetchAccuracy() {
-        return prefetchAccuracy.getNextAccuracy();
+        return prefetchAccuracy.getAccuracy();
     }
     
     /**

@@ -32,116 +32,40 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
     }
     
     public void testInitAccuracy() {
-        assertTrue(accuracy.getNextAccuracy() > 0.0);
+        assertEquals(0.0, accuracy.getAccuracy(), 0.001);
     }
     
-    public void testSimpleAccuracy() {
-        FakeFuture[] futures = new FakeFuture[2];
+    public void testSimpleAccuracyQuotient() {
+        FakeFuture[] futures = new FakeFuture[5];
         for (int i = 0; i < futures.length; ++i) {
             futures[i] = new FakeFuture(cache);
-        }
-        accuracy.addPrefetchHint(futures[0]);
-        accuracy.addIssuedPrefetch(futures[0]);
-        // cache: [A]
-        // hints: [1]
-        // hits:  [0]
-
-        accuracy.removePrefetch(futures[0]);
-        // cache: 
-        // hints: [1]
-        // hits:  [0]
-
-        accuracy.addPrefetchHint(futures[1]);
-        // cache: 
-        // hints: [2]
-        // hits:  [0]
-        // accuracy would be zero here, but we will want it 'smoothed' up to non-zero;
-        //  see testSmoothing()
-
-        accuracy.addIssuedPrefetch(futures[1]);
-        // cache: [B]
-        // hints: [2]
-        // hits:  [0]
-        
-        accuracy.markDemandFetched(futures[1]);
-        // cache: [B]
-        // hints: [2]
-        // hits:  [1]
-
-        accuracy.removePrefetch(futures[1]);
-        // cache: 
-        // hints: [2]
-        // hits:  [1]
-        // next accuracy = 1 hit / 2 hints = 1/2
-        assertEquals(0.5, accuracy.getNextAccuracy(), 0.001);
-    }
-    
-    public void testAccuracyWithDepth() {
-        FakeFuture[] futures = new FakeFuture[4];
-        for (int i = 0; i < futures.length; ++i) {
-            futures[i] = new FakeFuture(cache);
-        }
-    
-        for (int i = 0; i < 3; ++i) {
             accuracy.addPrefetchHint(futures[i]);
-            accuracy.addIssuedPrefetch(futures[i]);
+            assertEquals(0.0, accuracy.getAccuracy(), 0.001);
         }
-        // cache: [A][B][C]
-        // hints: [1][1][1]
-        // hits:  [0][0][0]
         
-        accuracy.markDemandFetched(futures[0]);
-        // cache: [A][B][C]
-        // hints: [1][1][1]
-        // hits:  [1][0][0]
-
-        accuracy.removePrefetch(futures[0]);
-        // cache: [B][C]
-        // hints: [1][1][1]
-        // hits:  [1][0][0]
-        // next accuracy = 1 hit / (1+1+1) hints = 1/3
-        assertEquals(0.3333, accuracy.getNextAccuracy(), 0.001);
-        
-        accuracy.addPrefetchHint(futures[3]);
-        accuracy.addIssuedPrefetch(futures[3]);
-        accuracy.markDemandFetched(futures[3]);
-        // cache: [B][C][D]
-        // hints: [1][1][2]
-        // hits:  [1][0][1]
-        
-        accuracy.removePrefetch(futures[3]);
-        // cache: [B][C]
-        // hints: [1][1][2]
-        // hits:  [1][0][1]
-        // next accuracy = 2 hits / 4 hints = 1/2
-        assertEquals(0.5, accuracy.getNextAccuracy(), 0.001);
-        
-        accuracy.removePrefetch(futures[2]);
-        // cache: [B]
-        // hints: [1][1][2]
-        // hits:  [1][0][1]
-        // next accuracy = 1 hits / 2 hints = 1/2
-        assertEquals(0.5, accuracy.getNextAccuracy(), 0.001);
-        
-        accuracy.removePrefetch(futures[1]);
-        // cache: 
-        // hints: [1][1][2]
-        // hits:  [1][0][1]
-        // next accuracy = 1 hits / 1 hints = 1
-        assertEquals(1.0, accuracy.getNextAccuracy(), 0.001);
+        // accuracy should increase as 1/5, 2/5, 3/5, 4/5, 5,5
+        //  as newest hints are consumed
+        for (int i = futures.length - 1; i >= 0; --i) {
+            accuracy.markDemandFetched(futures[i]);
+            assertEquals((futures.length - i) / 5.0, accuracy.getAccuracy(), 0.001);
+        }
     }
     
-    /*
-     * Test that the getNextAccuracy method doesn't return 0.
-     * It should instead return some value 
-     */
-    public void testSmoothing() {
-        FakeFuture future = new FakeFuture(cache);
-        
-        assertTrue(accuracy.getNextAccuracy() > 0.0);
-        accuracy.addPrefetchHint(future);
-        accuracy.addIssuedPrefetch(future);
-        accuracy.removePrefetch(future);
-        assertTrue(accuracy.getNextAccuracy() > 0.0);
+    public void testAccuracyWithTrailingUnconsumedHints() {
+        FakeFuture[] futures = new FakeFuture[6];
+        for (int i = 0; i < futures.length; ++i) {
+            futures[i] = new FakeFuture(cache);
+            accuracy.addPrefetchHint(futures[i]);
+            assertEquals(0.0, accuracy.getAccuracy(), 0.001);
+        }
+
+        accuracy.markDemandFetched(futures[0]);
+        assertEquals(1.0, accuracy.getAccuracy(), 0.001);
+
+        accuracy.markDemandFetched(futures[2]);
+        assertEquals(2.0/3.0, accuracy.getAccuracy(), 0.001);
+
+        accuracy.markDemandFetched(futures[5]);
+        assertEquals(3.0/6.0, accuracy.getAccuracy(), 0.001);
     }
 }
