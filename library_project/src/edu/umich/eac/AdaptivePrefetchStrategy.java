@@ -218,13 +218,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
 
     private double calculateBenefit(FetchFuture<?> prefetch) {
         // Application implements this computation.
-        // networkStats contains an estimate of the average network conditions
+        // averageNetworkStats contains an estimate of the average network conditions
         //   that the fetch might encounter, so estimateFetchTime represents the 
         //   average benefit of prefetching (taking size into account).
-        NetworkStats networkStats = NetworkStats.getNetworkStats();
-        double benefit = prefetch.estimateFetchTime(networkStats.bandwidthDown,
-                                                    networkStats.bandwidthUp,
-                                                    networkStats.rttMillis);
+        double benefit = prefetch.estimateFetchTime(averageNetworkStats.bandwidthDown,
+                                                    averageNetworkStats.bandwidthUp,
+                                                    averageNetworkStats.rttMillis);
         double accuracy = prefetch.getCache().stats.getPrefetchAccuracy();
         return (accuracy * benefit);
     }
