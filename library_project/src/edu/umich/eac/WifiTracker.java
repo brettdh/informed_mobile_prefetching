@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.net.InetAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Date;
 
 import android.content.BroadcastReceiver;
@@ -12,6 +14,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.ConnectivityManager;
+import android.net.DhcpInfo;
 import android.net.NetworkInfo;
 import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiManager;
@@ -187,6 +190,40 @@ public class WifiTracker extends BroadcastReceiver {
         }
     }
     
+    public synchronized boolean isAvailableNow() {
+        WifiManager wifi = 
+            (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+        WifiInfo wifiInfo = wifi.getConnectionInfo();
+        if (wifiInfo == null) {
+            return false;
+        }
+        int wifiIp = wifiInfo.getIpAddress();
+        if (wifiIp == 0) {
+            return false;
+        }
+        
+        return askScoutIfIpIsConnected(wifiIp);
+    }
+    
+    private native boolean askScoutIfIpIsConnected(int ipAddr);
+    
+    private static InetAddress intToInetAddress(int n) {
+        byte[] ret = new byte[4];
+        ret[0] = (byte)((n >> 0  ) & 0xFF);
+        ret[1] = (byte)((n >> 8  ) & 0xFF);
+        ret[2] = (byte)((n >> 16 ) & 0xFF);
+        ret[3] = (byte)((n >> 24 ) & 0xFF);
+        
+        InetAddress addr = null;
+        try {
+            addr = InetAddress.getByAddress(ret);
+        } catch (UnknownHostException e) {
+            // this means "illegal ip address length", which shouldn't happen.
+            assert false;
+        }
+        return addr;
+    }
+
     protected void finalize() throws Throwable {
         if (context != null) {
             context.unregisterReceiver(this);
