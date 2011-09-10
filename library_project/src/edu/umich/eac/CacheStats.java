@@ -24,7 +24,7 @@ class CacheStats {
     private int numHintedPrefetches = 0;
     private int numCancelledFetches = 0;
     
-    PrefetchAccuracy prefetchAccuracy = new PrefetchAccuracy();
+    private PrefetchAccuracy prefetchAccuracy = new PrefetchAccuracy();
 
     private PrintWriter logFileWriter;
     

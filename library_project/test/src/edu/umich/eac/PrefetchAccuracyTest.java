@@ -1,5 +1,8 @@
 package edu.umich.eac;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+
 import android.test.InstrumentationTestCase;
 
 
@@ -21,6 +24,20 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
     private class FakeFuture extends FetchFuture<Integer> {
         FakeFuture(EnergyAdaptiveCache cache) {
             super(null, cache);
+        }
+    }
+    
+    private class FakeFetcher extends CacheFetcher<String> {
+        private String theString = "The string.";
+        
+        @Override
+        public String call(int labels) throws Exception {
+            return theString;
+        }
+
+        @Override
+        public int bytesToTransfer() {
+            return theString.length();
         }
     }
     
@@ -67,5 +84,26 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
 
         accuracy.markDemandFetched(futures[5]);
         assertEquals(3.0/6.0, accuracy.getAccuracy(), 0.001);
+    }
+    
+    public void testAccuracyChangesThroughCacheStats() throws InterruptedException, ExecutionException {
+        assertEquals(0.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        
+        FakeFetcher fetcher = new FakeFetcher();
+        Future<String> future = cache.prefetch(fetcher);
+        assertEquals(0.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        
+        future.get();
+        assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        
+        Future<String> future2 = cache.prefetch(fetcher);
+        assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        Future<String> future3 = cache.prefetch(fetcher);
+        assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
+
+        future3.get();
+        assertEquals(2.0/3.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        future2.get();
+        assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
     }
 }

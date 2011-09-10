@@ -225,6 +225,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                                                     averageNetworkStats.bandwidthUp,
                                                     averageNetworkStats.rttMillis);
         double accuracy = prefetch.getCache().stats.getPrefetchAccuracy();
+        Log.d(TAG, String.format("Computed prefetch accuracy: %f", accuracy));
         return (accuracy * benefit);
     }
 
