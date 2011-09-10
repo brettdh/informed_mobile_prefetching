@@ -30,6 +30,9 @@ class PrefetchAccuracy {
                 utilizedPrefetchHints++;
             }
         }
+        // To disable Brian's patch to the simple calculation, uncomment this line.  
+        hintedPrefetches = prefetchHintsConsumed.size();
+        
         if (hintedPrefetches == 0) {
             return 0.0;
         }
