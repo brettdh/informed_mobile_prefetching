@@ -65,7 +65,6 @@ class CacheStats {
     }
 
     synchronized <V> void onUnhintedDemandFetch(FetchFuture<V> fetchFuture) {
-        // an unhinted demand fetch decreases the overall accuracy of prefetch hints.
         prefetchAccuracy.addUnhintedPrefetch(fetchFuture);
         numHintedPrefetches++;
     }

@@ -16,7 +16,7 @@ class PrefetchAccuracy {
          * e.g. if the hint consumption pattern is 0010010100,
          * where 1 is consumed and 0 is not, the accuracy is 3/8
          * rather than 3/10.  This avoids penalizing applications
-         * that hint far on into the future.
+         * that hint far on into the future. (Brian's patch)
          * 
          * Note that the accuracy is zero to start.  This means that
          * we won't prefetch until after the first consumption.

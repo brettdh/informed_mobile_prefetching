@@ -97,7 +97,6 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         throws CancellationException {
         if (cancelled) throw new CancellationException();
         if (demand) {
-            /*
             if (realFuture != null && !fetcher.isDemand() && 
                 !realFuture.isDone()) {
                 // there's a pending background prefetch.
@@ -105,27 +104,9 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
                 // XXX: this might be bad if the fetch is 
                 //      large and almost done.  Hence label promotion.
                 
-                
                 realFuture.cancel(true);
                 realFuture = null;
             }
-            */
-            // XXX: weeeeird bug here.
-            // Symptoms:
-            // 1) If I comment this entire block out like so,
-            //    the bug does not manifest.
-            // 2) If I only comment out the cancel() call, 
-            //    or if I only comment out the conditional body
-            //    without commenting the conditional itself,
-            //    the bug manifests and the benchmark hangs.
-            // Could possibly be a race on realFuture;
-            //  that seems more likely than a race on fetcher,
-            //  but I don't see how get() and isDone() aren't thread-safe
-            //  with respect to each other.  realFuture is only assigned
-            //  in this method.
-            // Ooooh... I wonder if it's a race with the native code
-            //   that calls back into this object.
-            // TODO: figure out WTF is going on and FIX IT.
             
             fetcher.labels &= ~IntNWLabels.BACKGROUND;
             fetcher.labels |= IntNWLabels.ONDEMAND;
