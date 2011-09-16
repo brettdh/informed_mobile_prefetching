@@ -5,18 +5,6 @@ import java.util.concurrent.Future;
 
 import android.test.InstrumentationTestCase;
 
-
-/*
- * Assumptions:
- * 
- * Insofar as they contribute to the accuracy calculation,
- *  hints are recorded as affecting the accuracy of the
- *  *next* cache size up, since one hint indicates that
- *  the cache should potentially be expanded by one item.
- * Hits (utilized prefetch hint) are recorded as contributing to
- *  the accuracy of the minimum cache size that contains the
- *  prefetched data item. 
- */
 public class PrefetchAccuracyTest extends InstrumentationTestCase {
     PrefetchAccuracy accuracy;
     EnergyAdaptiveCache cache;
@@ -68,24 +56,6 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
         }
     }
     
-    public void testAccuracyWithTrailingUnconsumedHints() {
-        FakeFuture[] futures = new FakeFuture[6];
-        for (int i = 0; i < futures.length; ++i) {
-            futures[i] = new FakeFuture(cache);
-            accuracy.addPrefetchHint(futures[i]);
-            assertEquals(0.0, accuracy.getAccuracy(), 0.001);
-        }
-
-        accuracy.markDemandFetched(futures[0]);
-        assertEquals(1.0, accuracy.getAccuracy(), 0.001);
-
-        accuracy.markDemandFetched(futures[2]);
-        assertEquals(2.0/3.0, accuracy.getAccuracy(), 0.001);
-
-        accuracy.markDemandFetched(futures[5]);
-        assertEquals(3.0/6.0, accuracy.getAccuracy(), 0.001);
-    }
-    
     public void testAccuracyChangesThroughCacheStats() throws InterruptedException, ExecutionException {
         assertEquals(0.0, cache.stats.getPrefetchAccuracy(), 0.001);
         
@@ -97,9 +67,9 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
         assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
         
         Future<String> future2 = cache.prefetch(fetcher);
-        assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        assertEquals(0.5, cache.stats.getPrefetchAccuracy(), 0.001);
         Future<String> future3 = cache.prefetch(fetcher);
-        assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        assertEquals(1.0/3.0, cache.stats.getPrefetchAccuracy(), 0.001);
 
         future3.get();
         assertEquals(2.0/3.0, cache.stats.getPrefetchAccuracy(), 0.001);

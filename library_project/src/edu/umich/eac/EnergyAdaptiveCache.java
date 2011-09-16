@@ -1,22 +1,11 @@
 package edu.umich.eac;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.CancellationException;
-import java.util.Collections;
 import java.util.Date;
-import java.util.Set;
-import java.util.TreeSet;
-
-import org.apache.commons.math.stat.descriptive.SummaryStatistics;
 
 import android.content.Context;
 import android.util.Log;
@@ -92,8 +81,6 @@ public class EnergyAdaptiveCache {
     }
     
     <V> Future<V> submit(Callable<V> fetcher, int demand_labels) {
-        // TODO: record whatever necessary information
-        // TODO: make a method to do that, and call it from FetchFuture
         if ((demand_labels & IntNWLabels.BACKGROUND) != 0) {
             return bg_executor.submit(fetcher);
         } else {
@@ -106,8 +93,13 @@ public class EnergyAdaptiveCache {
     private long relGoalTimeEpochMillis;
     
     // Bound on the number of in-flight prefetches, similar to before.
-    // XXX: does this need to be configurable?
-    public static final int NUM_THREADS = 10;
+    // Bounding this to only one thread for now, because unless I'm
+    //  prefetching a lot of tiny things, the RTT that I save by
+    //  pipelining prefetches won't really matter much.
+    //  This also simplifies application code by not requiring
+    //  it to do the pipelining and maintaining the order of
+    //  prefetches.
+    public static final int NUM_THREADS = 1;
     
     /* Should only call this one if the strategy ignores the params. */
     public EnergyAdaptiveCache(Context context, PrefetchStrategyType strategyType) {

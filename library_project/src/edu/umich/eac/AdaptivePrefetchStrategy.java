@@ -5,7 +5,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
@@ -116,36 +120,20 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         fixedDataWeight = dataWeight;
     }
 
-    class MonitorThread extends Thread {
-        @Override
-        public void run() {
-            final int SAMPLE_PERIOD_MS = 200;
-            Date lastNetworkStatsUpdate = new Date();
-            while (true) {
-                // TODO: update energy stats
-                
-                mDataSpent.updateStats();
-                if (System.currentTimeMillis() - lastNetworkStatsUpdate.getTime() > 1000) {
-                    updateNetworkStats();
-                }
-                
-                try {
-                    PrefetchTask task = 
-                        deferredPrefetches.poll(SAMPLE_PERIOD_MS, TimeUnit.MILLISECONDS);
-                    if (task == null) {
-                        // timed out
-                        continue;
-                    }
-                    if (task.reevaluate()) {
-                        continue;
-                    }
-                
-                    Thread.sleep(SAMPLE_PERIOD_MS);
-                } catch (InterruptedException e) {
-                    break;
-                }
-            }
+    private Date lastStatsUpdate = new Date();
+    
+    private synchronized void updateStats() {
+        updateEnergyStats();
+        
+        mDataSpent.updateStats();
+        if (System.currentTimeMillis() - lastStatsUpdate.getTime() > 1000) {
+            updateNetworkStats();
         }
+        lastStatsUpdate = new Date();
+    }
+
+    private synchronized void updateEnergyStats() {
+        // TODO: implement.
     }
 
     private synchronized void updateNetworkStats() {
@@ -153,7 +141,60 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         averageNetworkStats.updateAsAverage(currentNetworkStats, numNetworkStatsUpdates);
         numNetworkStatsUpdates++;
     }
-    
+
+    class MonitorThread extends Thread {
+        @Override
+        public void run() {
+            final int SAMPLE_PERIOD_MS = 200;
+            updateStats();
+            
+            while (true) {
+                try {
+                    reevaluateAllDeferredPrefetches();
+                    updateStats();
+                    Thread.sleep(SAMPLE_PERIOD_MS);
+                } catch (InterruptedException e) { 
+                    break;
+                }
+            }
+        }
+
+        private void reevaluateAllDeferredPrefetches() throws InterruptedException {
+            Queue<PrefetchTask> tasks = new LinkedList<PrefetchTask>();
+            while (!deferredPrefetches.isEmpty()) {
+                // This will never block, because of the isEmpty check,
+                //  and because this is the only thread that removes items
+                //  from the queue.
+                PrefetchTask task = deferredPrefetches.take();
+                // take() returns an item or throws InterruptedException.
+                //   it does not return null.
+                assert(task != null);
+                tasks.add(task);
+            }
+            while (!tasks.isEmpty()) {
+                PrefetchTask task = tasks.remove();
+                if (task.reevaluate()) {
+                    // this prefetch was issued. 
+                    //   restart evaluation at beginning, so as to avoid
+                    //   the situation where network conditions change
+                    //   in the middle of reevaluating the list.
+                    //   I know I'm only issuing one prefetch at a time,
+                    //   so don't bother checking the rest of the list.
+                    break;
+                } else {
+                    // this prefetch was deferred again, meaning it was
+                    //   added back to the deferredPrefetches queue.
+                    //   so, we move on to the next one without waiting
+                    //   or storing this one again.
+                    continue;
+                }
+            }
+            // add back any tasks that I didn't evaluate; they'll go to 
+            //  their original place in the queue.
+            deferredPrefetches.addAll(tasks);
+        }
+    }
+
     @Override
     public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {
         if (cancelled) {

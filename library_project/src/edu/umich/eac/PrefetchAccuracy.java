@@ -11,27 +11,21 @@ class PrefetchAccuracy {
      */
     public synchronized double getAccuracy() {
         /* The prefetch hint accuracy is the number of consumed hints
-         * divided by the total number of hints.  We only consider
-         * the number of total hints up until the last consumed hint;
+         * divided by the total number of hints.
          * e.g. if the hint consumption pattern is 0010010100,
-         * where 1 is consumed and 0 is not, the accuracy is 3/8
-         * rather than 3/10.  This avoids penalizing applications
-         * that hint far on into the future. (Brian's patch)
+         * where 1 is consumed and 0 is not, the accuracy is 3/10.
          * 
          * Note that the accuracy is zero to start.  This means that
          * we won't prefetch until after the first consumption.
          */
         int utilizedPrefetchHints = 0;
-        int hintedPrefetches = 0;
         for (int i = 0; i < prefetchHintsConsumed.size(); ++i) {
             boolean consumed = prefetchHintsConsumed.get(i);
             if (consumed) {
-                hintedPrefetches = i + 1;
                 utilizedPrefetchHints++;
             }
         }
-        // To disable Brian's patch to the simple calculation, uncomment this line.  
-        hintedPrefetches = prefetchHintsConsumed.size();
+        int hintedPrefetches = prefetchHintsConsumed.size();
         
         if (hintedPrefetches == 0) {
             return 0.0;
