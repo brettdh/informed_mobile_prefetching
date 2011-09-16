@@ -24,6 +24,10 @@ public:
     EnergyAdaptiveCache(JNIEnv *env, jobject context, PrefetchStrategyType type,
                         struct timeval goalTime, int energyBudget, int dataBudget);
     ~EnergyAdaptiveCache();
+
+    // update the goal time of this cache to be
+    //  as if the experiment had started startDelayedMillis ago.
+    void updateGoalTime(int startDelayedMillis);
     
     Future * prefetch(JNICacheFetcherPtr fetcher);
     Future * prefetchNow(JNICacheFetcherPtr fetcher);
@@ -63,6 +67,7 @@ private:
     jmethodID prefetchMID;
     jmethodID prefetchNowMID;
     jmethodID fetchMID;
+    jmethodID updateGoalTimeMID;
 };
 
 #endif

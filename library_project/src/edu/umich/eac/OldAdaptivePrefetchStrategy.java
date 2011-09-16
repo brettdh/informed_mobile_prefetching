@@ -141,8 +141,10 @@ class OldAdaptivePrefetchStrategy extends PrefetchStrategy {
     }
     
     @Override
-    public void onPrefetchCancelled(FetchFuture<?> prefetch) {
-        deferredPrefetches.remove(prefetch);
+    public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {
+        if (cancelled) {
+            deferredPrefetches.remove(prefetch);
+        }
     }
     
     // deterministic for testing

@@ -102,6 +102,8 @@ public class EnergyAdaptiveCache {
     }
     
     CacheStats stats = new CacheStats();
+
+    private long relGoalTimeEpochMillis;
     
     // Bound on the number of in-flight prefetches, similar to before.
     // XXX: does this need to be configurable?
@@ -120,10 +122,25 @@ public class EnergyAdaptiveCache {
         bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
         fg_executor = Executors.newCachedThreadPool();
 
+        long nowMillis = System.currentTimeMillis();
+        if (goalTimeEpochMillis > nowMillis) {
+            relGoalTimeEpochMillis = goalTimeEpochMillis - nowMillis;
+        } else {
+            relGoalTimeEpochMillis = 0;
+        }
         Date goalTime = new Date(goalTimeEpochMillis);
         strategy = PrefetchStrategy.create(context, strategyType, goalTime, 
                                            energyBudget, dataBudget);
     }
     
+    /** update the goal time of this cache to be
+     *  as if the experiment had started startDelayedMillis ago.
+     */
+    public void updateGoalTime(int startDelayedMillis) {
+        strategy.updateGoalTime(new Date(System.currentTimeMillis() + 
+                                         relGoalTimeEpochMillis - 
+                                         startDelayedMillis));
+    }
+
     PrefetchStrategy strategy;
 }

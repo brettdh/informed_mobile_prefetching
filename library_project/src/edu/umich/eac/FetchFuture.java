@@ -43,6 +43,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
             V result = labeledFetcher.call(labels);
             if (!isDemand()) {
                 cache.stats.onPrefetchDone(future);
+                cache.strategy.onPrefetchDone(future, false);
             }
             return result;
         }
@@ -81,7 +82,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
             return true;
         }
         cache.stats.onFetchCancelled(this);
-        cache.strategy.onPrefetchCancelled(this);
+        cache.strategy.onPrefetchDone(this, true);
         
         Future<V> f = getFutureRef();
         if (f == null) {
@@ -135,6 +136,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         establishFuture(true);
         V result = realFuture.get();
         cache.stats.onDemandFetchDone(this);
+        cache.strategy.onPrefetchDone(this, false);
         return result;
     }
     
@@ -145,6 +147,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         establishFuture(true);
         V result = realFuture.get(timeout, unit);
         cache.stats.onDemandFetchDone(this);
+        cache.strategy.onPrefetchDone(this, false);
         return result;
     }
     

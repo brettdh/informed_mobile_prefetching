@@ -11,7 +11,7 @@ import edu.umich.eac.ConservativePrefetchStrategy;
 
 abstract class PrefetchStrategy {
     public abstract void onPrefetchEnqueued(FetchFuture<?> prefetch);
-    public void onPrefetchCancelled(FetchFuture<?> prefetch) {}
+    public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {}
     
     /** 
      * Initialize the object with the strategy parameters.
@@ -23,6 +23,13 @@ abstract class PrefetchStrategy {
      * @param dataGoal Bytes of mobile data spendable before goalTime
      */
     public void setup(Context context, Date goalTime, int energyGoal, int dataGoal) {}
+    
+    /**
+     * Update the goal time.  Used to synchronize the user-replay script
+     *  with the prefetch strategy.
+     * @param newGoalTime new endingn time of the goals.
+     */
+    public void updateGoalTime(Date newGoalTime) {}
     
     public static PrefetchStrategy create(Context context,
                                           PrefetchStrategyType type,

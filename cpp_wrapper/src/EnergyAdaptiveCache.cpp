@@ -122,6 +122,7 @@ getEnumValue(JNIEnv *jenv, enum PrefetchStrategyType type)
 
 static const char *prefetchMethodSig = 
     "(Ledu/umich/eac/CacheFetcher;)Ljava/util/concurrent/Future;";
+static const char *updateGoalTimeMethodSig = "(I)V";
 
 EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv, jobject context,
                                          enum PrefetchStrategyType type)
@@ -148,6 +149,7 @@ EnergyAdaptiveCache::init(JNIEnv *jenv, jobject context,
     cacheClazz = NULL;
     realCacheObj = NULL;
     prefetchMID = NULL;
+    updateGoalTimeMID = NULL;
     
     jint rc = jenv->GetJavaVM(&vm);
     if (rc != 0) {
@@ -169,6 +171,11 @@ EnergyAdaptiveCache::init(JNIEnv *jenv, jobject context,
     fetchMID = jenv->GetMethodID(cacheClazz, "fetch", 
                                  prefetchMethodSig);
     if (!fetchMID || JAVA_EXCEPTION_OCCURRED(jenv)) {
+        fatal_error("Can't find fetch method");
+    }
+    updateGoalTimeMID = jenv->GetMethodID(cacheClazz, "updateGoalTime", 
+                                          updateGoalTimeMethodSig);
+    if (!updateGoalTimeMID || JAVA_EXCEPTION_OCCURRED(jenv)) {
         fatal_error("Can't find fetch method");
     }
     jmethodID ctor = jenv->GetMethodID(
@@ -198,6 +205,16 @@ EnergyAdaptiveCache::~EnergyAdaptiveCache()
     if (rc == 0) {
         jenv->DeleteGlobalRef(realCacheObj);
         //vm->DetachCurrentThread();
+    }
+}
+
+void
+EnergyAdaptiveCache::updateGoalTime(int startDelayedMillis)
+{
+    JNIEnv *jenv = getJNIEnv(vm);
+    jenv->CallVoidMethod(realCacheObj, updateGoalTimeMID, startDelayedMillis);
+    if (JAVA_EXCEPTION_OCCURRED(jenv)) {
+        fatal_error("Can't update goal time");
     }
 }
 

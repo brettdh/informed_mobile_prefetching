@@ -1,9 +1,13 @@
 package edu.umich.eac;
 
 import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.util.Date;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -14,8 +18,17 @@ import edu.umich.eac.WifiTracker.ConditionChange;
 import edu.umich.eac.WifiTracker.Prediction;
 
 public class AdaptivePrefetchStrategy extends PrefetchStrategy {
+    private static final String LOG_FILENAME = "/sdcard/intnw/adaptive_prefetch_decisions.log";
     static final String TAG = AdaptivePrefetchStrategy.class.getName();
 
+    private PrintWriter logFileWriter;
+    private void logPrint(String msg) {
+        if (logFileWriter != null) {
+            final long now = System.currentTimeMillis();
+            logFileWriter.println(String.format("%d %s", now, msg));
+        }
+    }
+    
     // TODO: determine this from Android APIs
     private static final String CELLULAR_IFNAME = "rmnet0";
     
@@ -31,16 +44,23 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             scheduledTime = new Date();
         }
         public boolean reevaluate() {
-            return AdaptivePrefetchStrategy.this.handlePrefetch(prefetch);
+            return AdaptivePrefetchStrategy.this.handlePrefetch(this);
         }
 
         public int compareTo(PrefetchTask another) {
+            if (prefetch.equals(another.prefetch)) {
+                return 0;
+            }
             return scheduledTime.compareTo(another.scheduledTime);
         }
     }
 
     private PriorityBlockingQueue<PrefetchTask> deferredPrefetches = 
         new PriorityBlockingQueue<PrefetchTask>();
+    
+    private static final int NUM_CONCURRENT_PREFETCHES = 1;
+    private BlockingQueue<FetchFuture<?> > prefetchesInProgress = 
+        new ArrayBlockingQueue<FetchFuture<?> >(NUM_CONCURRENT_PREFETCHES);
     
     private Date mStartTime;
     private Date mGoalTime;
@@ -54,7 +74,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private int mEnergySpent;
     private ProcNetworkStats mDataSpent;
     
-    // TODO: update at the right times!
     private NetworkStats currentNetworkStats;
     private NetworkStats averageNetworkStats;
     private int numNetworkStatsUpdates;
@@ -63,6 +82,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     
     @Override
     public void setup(Context context, Date goalTime, int energyBudget, int dataBudget) {
+        try {
+            logFileWriter = new PrintWriter(new FileWriter(LOG_FILENAME, true), true);
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to create log file: " + e.getMessage());
+        }
+        
         mStartTime = new Date();
         mGoalTime = goalTime;
         mEnergyBudget = energyBudget;
@@ -78,6 +103,11 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         
         monitorThread = new MonitorThread();
         monitorThread.start();
+    }
+    
+    @Override
+    public void updateGoalTime(Date newGoalTime) {
+        mGoalTime = newGoalTime;
     }
     
     public static void setStaticParams(double energyWeight, double dataWeight) {
@@ -125,23 +155,41 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
     
     @Override
-    public void onPrefetchCancelled(FetchFuture<?> prefetch) {
-        deferredPrefetches.remove(prefetch);
+    public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {
+        if (cancelled) {
+            PrefetchTask dummy = new PrefetchTask(prefetch);
+            deferredPrefetches.remove(dummy);
+        }
+        prefetchesInProgress.remove(prefetch);
     }
     
     @Override
     public void onPrefetchEnqueued(FetchFuture<?> prefetch) {
-        handlePrefetch(prefetch);
+        handlePrefetch(new PrefetchTask(prefetch));
     }
     
-    private boolean handlePrefetch(FetchFuture<?> prefetch) {
+    private boolean handlePrefetch(PrefetchTask task) {
+        FetchFuture<?> prefetch = task.prefetch;
+        if (!prefetchesInProgress.offer(prefetch)) {
+            // too many prefetches in progress; defer
+            logPrint(String.format("%d prefetches outstanding; deferring prefetch 0x%08x", 
+                                   prefetchesInProgress.size(), prefetch.hashCode()));
+            deferDecision(task);
+            return false;
+        }
+        
         double cost = calculateCost(prefetch);
         double benefit = calculateBenefit(prefetch);
+        logPrint(String.format("Cost = %f; benefit = %f; %s prefetch 0x%08x", 
+                               cost, benefit, 
+                               (cost < benefit) ? "issuing" : "deferring",
+                               prefetch.hashCode()));
         if (cost < benefit) {
             issuePrefetch(prefetch);
             return true;
         } else {
-            deferDecision(prefetch);
+            prefetchesInProgress.remove(prefetch);
+            deferDecision(task);
             return false;
         }
     }
@@ -205,7 +253,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private double currentDataCost(FetchFuture<?> prefetch) {
-        if (!isWifiAvailable()) {
+        if (!wifiTracker.isWifiAvailable()) {
             return prefetch.bytesToTransfer();
         } else {
             return 0;
@@ -284,7 +332,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
     
     private void issuePrefetch(FetchFuture<?> prefetch) {
-        deferredPrefetches.remove(prefetch);
+        PrefetchTask dummy = new PrefetchTask(prefetch);
+        deferredPrefetches.remove(dummy);
         prefetch.addLabels(IntNWLabels.MIN_ENERGY);
         prefetch.addLabels(IntNWLabels.MIN_COST);
         try {
@@ -294,8 +343,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
 
-    private void deferDecision(FetchFuture<?> prefetch) {
-        PrefetchTask task = new PrefetchTask(prefetch);
+    private void deferDecision(PrefetchTask task) {
         deferredPrefetches.add(task);
     }
 }
