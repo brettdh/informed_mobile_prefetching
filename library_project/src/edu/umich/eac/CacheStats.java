@@ -13,7 +13,6 @@ import org.apache.commons.math.stat.descriptive.SummaryStatistics;
 import android.util.Log;
 
 class CacheStats {
-    private static final String LOG_FILENAME = "/sdcard/intnw/prefetching.log";
     private static final String TAG = CacheStats.class.getName();
     
     // promotion delay is in milliseconds
@@ -26,42 +25,27 @@ class CacheStats {
     
     private PrefetchAccuracy prefetchAccuracy = new PrefetchAccuracy();
 
-    private PrintWriter logFileWriter;
-    
-    private void logEvent(String type, int fetchId) {
-        if (logFileWriter != null) {
-            long now = System.currentTimeMillis();
-            logFileWriter.println(String.format("%d %s 0x%08x", now, type, fetchId));
-        }
-    }
-
     public CacheStats() {
         // fake value to start so that prefetches aren't 
         //  immediately considered not promoted 
         promotionDelay.addValue(promotionDelayInit);
-        try {
-            logFileWriter = new PrintWriter(new FileWriter(LOG_FILENAME, true), true);
-            logEvent("new-run", 0);
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to open cache stats log file: " + e.getMessage());
-        }
     }
     
     synchronized <V> void onPrefetchIssued(FetchFuture<V> fetchFuture) {
         prefetchAccuracy.addIssuedPrefetch(fetchFuture);
         
-        logEvent("prefetch-start", fetchFuture.hashCode());
+        EnergyAdaptiveCache.logEvent("prefetch-start", fetchFuture.hashCode());
     }
     
     synchronized <V> void onPrefetchHint(FetchFuture<V> fetchFuture) {
         prefetchAccuracy.addPrefetchHint(fetchFuture);
         numHintedPrefetches++;
 
-        logEvent("hint", fetchFuture.hashCode());
+        EnergyAdaptiveCache.logEvent("hint", fetchFuture.hashCode());
     }
     
     synchronized <V> void onPrefetchDone(FetchFuture<V> fetchFuture) {
-        logEvent("prefetch-done", fetchFuture.hashCode());
+        EnergyAdaptiveCache.logEvent("prefetch-done", fetchFuture.hashCode());
     }
 
     synchronized <V> void onUnhintedDemandFetch(FetchFuture<V> fetchFuture) {
@@ -83,18 +67,18 @@ class CacheStats {
             numCacheHits++;
         }
         
-        logEvent("demand-fetch-start", fetchFuture.hashCode());
+        EnergyAdaptiveCache.logEvent("demand-fetch-start", fetchFuture.hashCode());
     }
     
     synchronized <V> void onDemandFetchDone(FetchFuture<V> fetchFuture) {
-        logEvent("demand-fetch-done", fetchFuture.hashCode());
+        EnergyAdaptiveCache.logEvent("demand-fetch-done", fetchFuture.hashCode());
     }
     
     synchronized <V> void onFetchCancelled(FetchFuture<V> fetchFuture) {
         prefetchAccuracy.removePrefetch(fetchFuture);
         numCancelledFetches++;
         
-        logEvent("cancel", fetchFuture.hashCode());
+        EnergyAdaptiveCache.logEvent("cancel", fetchFuture.hashCode());
     }
     
     synchronized double getPrefetchAccuracy() {

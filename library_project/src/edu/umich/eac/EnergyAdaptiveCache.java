@@ -1,5 +1,8 @@
 package edu.umich.eac;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Callable;
@@ -101,6 +104,8 @@ public class EnergyAdaptiveCache {
     //  prefetches.
     public static final int NUM_THREADS = 1;
     
+    private static final String LOG_FILENAME = "/sdcard/intnw/prefetching.log";
+    
     /* Should only call this one if the strategy ignores the params. */
     public EnergyAdaptiveCache(Context context, PrefetchStrategyType strategyType) {
         this(context, strategyType, System.currentTimeMillis(), 0, 0);
@@ -114,6 +119,8 @@ public class EnergyAdaptiveCache {
         bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
         fg_executor = Executors.newCachedThreadPool();
 
+        logEvent("new-run", 0);
+        
         long nowMillis = System.currentTimeMillis();
         if (goalTimeEpochMillis > nowMillis) {
             relGoalTimeEpochMillis = goalTimeEpochMillis - nowMillis;
@@ -135,4 +142,24 @@ public class EnergyAdaptiveCache {
     }
 
     PrefetchStrategy strategy;
+    
+    private static PrintWriter logFileWriter;
+    static {
+        try {
+            logFileWriter = new PrintWriter(new FileWriter(LOG_FILENAME, true), true);
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to create log file: " + e.getMessage());
+        }
+    }
+    
+    static void logEvent(String type) {
+        logEvent(type, 0);
+    }
+    
+    static void logEvent(String type, int fetchId) {
+        if (logFileWriter != null) {
+            long now = System.currentTimeMillis();
+            logFileWriter.println(String.format("%d %s 0x%08x", now, type, fetchId));
+        }
+    }
 }

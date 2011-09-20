@@ -162,6 +162,7 @@ public class WifiTracker extends BroadcastReceiver {
             if (!wifiAvailable) {
                 lastEvent = new Date();
                 wifiAvailable = true;
+                EnergyAdaptiveCache.logEvent("wifi-up", 0);
             }
         } else {
             if (wifiAvailable) {
@@ -169,6 +170,7 @@ public class WifiTracker extends BroadcastReceiver {
                 wifiAvailableMillis += (now.getTime() - lastEvent.getTime());
                 lastEvent = now;
                 wifiAvailable = false;
+                EnergyAdaptiveCache.logEvent("wifi-down", 0);
             }
         }
     }
