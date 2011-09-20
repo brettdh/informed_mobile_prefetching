@@ -12,6 +12,7 @@ import edu.umich.eac.ConservativePrefetchStrategy;
 abstract class PrefetchStrategy {
     public abstract void onPrefetchEnqueued(FetchFuture<?> prefetch);
     public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {}
+    public void onDemandFetch(FetchFuture<?> prefetch) {}
     
     /** 
      * Initialize the object with the strategy parameters.

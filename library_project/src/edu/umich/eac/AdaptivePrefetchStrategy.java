@@ -13,6 +13,7 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -36,9 +37,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     // TODO: determine this from Android APIs
     private static final String CELLULAR_IFNAME = "rmnet0";
     
-    class PrefetchTask implements Comparable<PrefetchTask> {
+    private static int nextOrder = 0;
+    
+    static class PrefetchTask implements Comparable<PrefetchTask> {
         private Date scheduledTime;
         private FetchFuture<?> prefetch;
+        private int order;
         
         /** 
          * Schedule the prefetch for this many milliseconds in the future. 
@@ -46,16 +50,16 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         PrefetchTask(FetchFuture<?> pf) {
             prefetch = pf;
             scheduledTime = new Date();
-        }
-        public boolean reevaluate() {
-            return AdaptivePrefetchStrategy.this.handlePrefetch(this);
+            synchronized(PrefetchTask.class) {
+                order = ++nextOrder;
+            }
         }
 
         public int compareTo(PrefetchTask another) {
             if (prefetch.equals(another.prefetch)) {
                 return 0;
             }
-            return scheduledTime.compareTo(another.scheduledTime);
+            return order - another.order;
         }
     }
 
@@ -143,6 +147,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     class MonitorThread extends Thread {
+        BlockingQueue<PrefetchTask> tasksToEvaluate = 
+            new LinkedBlockingQueue<PrefetchTask>();
+        
         @Override
         public void run() {
             final int SAMPLE_PERIOD_MS = 200;
@@ -160,79 +167,90 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
 
         private void reevaluateAllDeferredPrefetches() throws InterruptedException {
-            Queue<PrefetchTask> tasks = new LinkedList<PrefetchTask>();
-            while (!deferredPrefetches.isEmpty()) {
-                // This will never block, because of the isEmpty check,
-                //  and because this is the only thread that removes items
-                //  from the queue.
-                PrefetchTask task = deferredPrefetches.take();
-                // take() returns an item or throws InterruptedException.
-                //   it does not return null.
-                assert(task != null);
-                tasks.add(task);
+            if (prefetchesInProgress.remainingCapacity() == 0) {
+                // too many prefetches in progress; defer
+                logPrint(String.format("%d prefetches outstanding (first is 0x%08x); deferring", 
+                        prefetchesInProgress.size(), 
+                        prefetchesInProgress.peek().hashCode()));
+                return;
             }
-            while (!tasks.isEmpty()) {
-                PrefetchTask task = tasks.remove();
-                if (task.reevaluate()) {
-                    // this prefetch was issued. 
+            
+            deferredPrefetches.drainTo(tasksToEvaluate);
+            logPrint(String.format("Reevaluating %d deferred prefetches", tasksToEvaluate.size()));
+
+            while (!tasksToEvaluate.isEmpty()) {
+                PrefetchTask task = tasksToEvaluate.remove();
+                logPrint(String.format("Evaluating prefetch 0x%08x", task.prefetch.hashCode()));
+                if (shouldIssuePrefetch(task.prefetch)) {
                     //   restart evaluation at beginning, so as to avoid
                     //   the situation where network conditions change
                     //   in the middle of reevaluating the list.
                     //   I know I'm only issuing one prefetch at a time,
                     //   so don't bother checking the rest of the list.
+                    PrefetchTask firstTask = deferredPrefetches.poll();
+                    if (firstTask != null && shouldIssuePrefetch(firstTask.prefetch)) {
+                        issuePrefetch(firstTask.prefetch);
+                        
+                        deferDecision(task);
+                    } else {
+                        issuePrefetch(task.prefetch);
+
+                        if (firstTask != null) {
+                            deferDecision(firstTask);
+                        }
+                    }
                     break;
                 } else {
-                    // this prefetch was deferred again, meaning it was
-                    //   added back to the deferredPrefetches queue.
-                    //   so, we move on to the next one without waiting
-                    //   or storing this one again.
-                    continue;
+                    deferDecision(task);
                 }
             }
+            
             // add back any tasks that I didn't evaluate; they'll go to 
             //  their original place in the queue.
-            deferredPrefetches.addAll(tasks);
+            tasksToEvaluate.drainTo(deferredPrefetches);
+        }
+        
+        void removeTask(FetchFuture<?> prefetch) {
+            PrefetchTask dummy = new PrefetchTask(prefetch);
+            tasksToEvaluate.remove(dummy);
+            deferredPrefetches.remove(dummy);
         }
     }
 
     @Override
+    public void onDemandFetch(FetchFuture<?> prefetch) {
+        prefetchesInProgress.remove(prefetch);
+        monitorThread.removeTask(prefetch);
+    }
+    
+    @Override
     public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {
         if (cancelled) {
-            PrefetchTask dummy = new PrefetchTask(prefetch);
-            deferredPrefetches.remove(dummy);
+            monitorThread.removeTask(prefetch);
         }
         prefetchesInProgress.remove(prefetch);
     }
     
     @Override
     public void onPrefetchEnqueued(FetchFuture<?> prefetch) {
-        handlePrefetch(new PrefetchTask(prefetch));
+        // The prefetch will get evaluated the next time around the loop.
+        //  Queue instead of calling issuePrefetch so that
+        //  issuePrefetch never hangs on prefetchesInProgress.offer();
+        //  otherwise there's a race with
+        //  prefetchesInProgress.remainingCapacity()
+        deferDecision(new PrefetchTask(prefetch));
     }
-    
-    private boolean handlePrefetch(PrefetchTask task) {
-        FetchFuture<?> prefetch = task.prefetch;
-        if (!prefetchesInProgress.offer(prefetch)) {
-            // too many prefetches in progress; defer
-            logPrint(String.format("%d prefetches outstanding; deferring prefetch 0x%08x", 
-                                   prefetchesInProgress.size(), prefetch.hashCode()));
-            deferDecision(task);
-            return false;
-        }
+
+    private boolean shouldIssuePrefetch(FetchFuture<?> prefetch) {
+        Double cost = calculateCost(prefetch);
+        Double benefit = calculateBenefit(prefetch);
+        final boolean shouldIssuePrefetch = cost < benefit;
         
-        double cost = calculateCost(prefetch);
-        double benefit = calculateBenefit(prefetch);
-        logPrint(String.format("Cost = %f; benefit = %f; %s prefetch 0x%08x", 
-                               cost, benefit, 
-                               (cost < benefit) ? "issuing" : "deferring",
+        logPrint(String.format("Cost = %s; benefit = %s; %s prefetch 0x%08x", 
+                               cost.toString(), benefit.toString(),
+                               shouldIssuePrefetch ? "issuing" : "deferring",
                                prefetch.hashCode()));
-        if (cost < benefit) {
-            issuePrefetch(prefetch);
-            return true;
-        } else {
-            prefetchesInProgress.remove(prefetch);
-            deferDecision(task);
-            return false;
-        }
+        return shouldIssuePrefetch;
     }
     
     private double calculateCost(FetchFuture<?> prefetch) {
@@ -258,19 +276,19 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private double calculateEnergyWeight() {
         if (fixedAdaptiveParamsEnabled) {
             return fixedEnergyWeight;
-        } else {
-            // TODO: tune adaptively based on resource usage history & projection.
-            throw new Error(ADAPTATION_NOT_IMPL_MSG);
         }
+
+        // TODO: tune adaptively based on resource usage history & projection.
+        throw new Error(ADAPTATION_NOT_IMPL_MSG);
     }
 
     private double calculateDataWeight() {
         if (fixedAdaptiveParamsEnabled) {
             return fixedDataWeight;
-        } else {
-            // TODO: tune adaptively based on resource usage history & projection.
-            throw new Error(ADAPTATION_NOT_IMPL_MSG);
         }
+
+        // TODO: tune adaptively based on resource usage history & projection.
+        throw new Error(ADAPTATION_NOT_IMPL_MSG);
     }
     
     private double estimateEnergyCost(FetchFuture<?> prefetch, 
@@ -338,43 +356,18 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return mDataSpent.getTotalBytes() / timeSinceStart();
     }
     
-    private boolean isWifiAvailable() {
-        String wifiDhcpStr = null;
-        String[] cmds = new String[2];
-        cmds[0] = "getprop";
-        cmds[1] = "dhcp.eth0.result";
-        Process p = null;
-        try {
-            p = Runtime.getRuntime().exec(cmds);
-            InputStreamReader in = new InputStreamReader(p.getInputStream());
-            BufferedReader rdr = new BufferedReader(in);
-            String line = null;
-            while ((line = rdr.readLine()) != null) {
-                if (line.trim().length() > 0) {
-                    wifiDhcpStr = line;
-                    break;
-                }
-            }
-            rdr.close();
-        } catch (IOException e) {
-            if (p == null) {
-                Log.e(TAG, String.format("Error: failed to exec '%s %s'",
-                                         cmds[0], cmds[1]));
-            } else {
-                // ignore; wifi not available
-            }
+    private void issuePrefetch(FetchFuture<?> prefetch) {
+        if (alreadyIssued(prefetch)) {
+            return;
         }
         
-        boolean wifiAvailable = false;
-        if (wifiDhcpStr != null) {
-            wifiAvailable = wifiDhcpStr.equals("ok");
+        if (!prefetchesInProgress.offer(prefetch)) {
+            // shouldn't happen, because only one thread calls this,
+            //  and it always checks prefetchesInProgress.remainingCapacity() > 0 
+            //  before doing so.
+            Log.e(TAG, "WARNING: pending queue refused prefetch.  Shouldn't happen.");
         }
-        return wifiAvailable;
-    }
-    
-    private void issuePrefetch(FetchFuture<?> prefetch) {
-        PrefetchTask dummy = new PrefetchTask(prefetch);
-        deferredPrefetches.remove(dummy);
+
         prefetch.addLabels(IntNWLabels.MIN_ENERGY);
         prefetch.addLabels(IntNWLabels.MIN_COST);
         try {
@@ -384,7 +377,20 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
 
+    private boolean alreadyIssued(FetchFuture<?> prefetch) {
+        // don't issue a prefetch if some fetch for this data
+        //  was already issued; it'll only hang up future prefetches
+        boolean issued = prefetch.wasIssued() || prefetch.isCancelled();
+        if (issued) {
+            logPrint(String.format("Ignoring already-issued prefetch 0x%08x", 
+                                   prefetch.hashCode()));
+        }
+        return issued;
+    }
+
     private void deferDecision(PrefetchTask task) {
-        deferredPrefetches.add(task);
+        if (!alreadyIssued(task.prefetch)) {
+            deferredPrefetches.add(task);
+        }
     }
 }

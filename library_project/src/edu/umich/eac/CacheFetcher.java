@@ -15,6 +15,6 @@ public abstract class CacheFetcher<V> {
                                     int worstBandwidthUp,
                                     int worstRTT) {
         // default implementation; assume downstream transfer dominates
-        return bytesToTransfer() / worstBandwidthDown;
+        return ((double) bytesToTransfer()) / ((double) worstBandwidthDown);
     }
 }

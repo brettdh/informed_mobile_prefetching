@@ -49,6 +49,10 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
     }
     
+    boolean wasIssued() {
+        return (realFuture != null);
+    }
+    
     public void addLabels(int labels) {
         fetcher.labels |= labels;
     }
@@ -133,6 +137,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     public V get() throws InterruptedException, ExecutionException, 
                           CancellationException {
         cache.stats.onDemandFetch(this);
+        cache.strategy.onDemandFetch(this);
         establishFuture(true);
         V result = realFuture.get();
         cache.stats.onDemandFetchDone(this);
@@ -144,6 +149,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         throws InterruptedException, ExecutionException, 
                TimeoutException, CancellationException {
         cache.stats.onDemandFetch(this);
+        cache.strategy.onDemandFetch(this);
         establishFuture(true);
         V result = realFuture.get(timeout, unit);
         cache.stats.onDemandFetchDone(this);

@@ -18,6 +18,9 @@ class PrefetchAccuracy {
          * Note that the accuracy is zero to start.  This means that
          * we won't prefetch until after the first consumption.
          */
+        
+        // TODO: decay impact of older hints.
+        
         int utilizedPrefetchHints = 0;
         for (int i = 0; i < prefetchHintsConsumed.size(); ++i) {
             boolean consumed = prefetchHintsConsumed.get(i);

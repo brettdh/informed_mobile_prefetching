@@ -15,20 +15,6 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
         }
     }
     
-    private class FakeFetcher extends CacheFetcher<String> {
-        private String theString = "The string.";
-        
-        @Override
-        public String call(int labels) throws Exception {
-            return theString;
-        }
-
-        @Override
-        public int bytesToTransfer() {
-            return theString.length();
-        }
-    }
-    
     @Override
     protected void setUp() {
         accuracy = new PrefetchAccuracy();
@@ -59,7 +45,7 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
     public void testAccuracyChangesThroughCacheStats() throws InterruptedException, ExecutionException {
         assertEquals(0.0, cache.stats.getPrefetchAccuracy(), 0.001);
         
-        FakeFetcher fetcher = new FakeFetcher();
+        FakeFetcher fetcher = new FakeFetcher("The string.");
         Future<String> future = cache.prefetch(fetcher);
         assertEquals(0.0, cache.stats.getPrefetchAccuracy(), 0.001);
         
