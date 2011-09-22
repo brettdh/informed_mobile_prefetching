@@ -8,5 +8,6 @@
 			<attribute name="javadoc_location" value="jar:platform:/resource/EnergyAdaptiveCachingLib/doc/commons-math-2.2-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="src" path="LibPowerTutor_src"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -21,6 +21,7 @@ import android.content.Context;
 import android.util.Log;
 import edu.umich.eac.WifiTracker.ConditionChange;
 import edu.umich.eac.WifiTracker.Prediction;
+import edu.umich.libpowertutor.EnergyEstimates;
 
 public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private static final String LOG_FILENAME = "/sdcard/intnw/adaptive_prefetch_decisions.log";
@@ -257,10 +258,10 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
         
-        double energyCostNow = estimateEnergyCost(prefetch, currentNetworkStats, currentNetworkPower());
+        double energyCostNow = currentEnergyCost(prefetch);
         double dataCostNow = currentDataCost(prefetch);
         
-        double energyCostFuture = estimateEnergyCost(prefetch, averageNetworkStats, averageNetworkPower());
+        double energyCostFuture = averageEnergyCost(prefetch, averageNetworkStats, averageNetworkPower());
         double dataCostFuture = averageDataCost(prefetch);
         
         double hintAccuracy = prefetch.getCache().stats.getPrefetchAccuracy();
@@ -291,13 +292,25 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         throw new Error(ADAPTATION_NOT_IMPL_MSG);
     }
     
-    private double estimateEnergyCost(FetchFuture<?> prefetch, 
-                                      NetworkStats stats, 
-                                      double networkPowerWatts) {
-        double fetchTime = prefetch.estimateFetchTime(stats.bandwidthDown, 
-                                                      stats.bandwidthUp,
-                                                      stats.rttMillis);
-        return fetchTime * networkPowerWatts;
+    private double currentEnergyCost(FetchFuture<?> prefetch) {
+        int datalen = prefetch.bytesToTransfer();
+        NetworkStats stats = currentNetworkStats;
+        if (wifiTracker.isWifiAvailable()) {
+            return EnergyEstimates.estimateWifiEnergyCost(datalen, 
+                                                          stats.bandwidthDown,
+                                                          stats.rttMillis);
+        } else {
+            return EnergyEstimates.estimateMobileEnergyCost(datalen, 
+                                                            stats.bandwidthDown,
+                                                            stats.rttMillis);
+        }
+    }
+    
+    private double averageEnergyCost(FetchFuture<?> prefetch) {
+        int datalen = prefetch.bytesToTransfer();
+        NetworkStats stats = averageNetworkStats;
+        
+        
     }
     
     private double currentNetworkPower() {

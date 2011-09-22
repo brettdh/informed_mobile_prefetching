@@ -14,25 +14,60 @@ using std::string;
 using std::ostringstream;
 using std::runtime_error;
 
+static jclass networkStatsClass;
+static jmethodID networkStatsCtor;
+static jclass hashMapClass;
+static jmethodID hashMapCtor;
+static jmethodID hashMapPut;
+static jint networkTypeWifi;
+static jint networkTypeMobile;
+
+static void
+checkJavaError(JNIEnf *jenv, bool fail_condition, const char *err_msg)
+{
+    if (fail_condition || JAVA_EXCEPTION_OCCURRED(jenv)) {
+        throw runtime_error(err_msg);
+    }
+}
+
+static void initCachedJNIData(JNIEnv *jenv)
+{
+    networkStatsClass = jenv->FindClass("edu/umich/eac/NetworkStats");
+    checkJavaError(jenv, !networkStatsClass, "Can't find NetworkStats class");
+
+    networkStatsCtor = jenv->GetMethodID(statsClass, "<init>", "()V");
+    checkJavaError(jenv, !networkStatsCtor, "Can't find NetworkStats constructor");
+    
+    hashMapClass = jenv->FindClass("java/util/HashMap");
+    checkJavaError(jenv, !hashMapClass, "Can't find HashMap class");
+
+    hashMapCtor = jenv->GetMethodID(hashMapClass, "<init>", "()V");
+    checkJavaError(jenv, !hashMapCtor, "Can't find HashMap constructor");
+
+    const char *putSignature = "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;";
+    hashMapPut = jenv->GetMethodID(hashMapClass, "put", putSignature);
+    checkJavaError(jenv, !hashMapPut, "Can't find HashMap put method");
+
+    jclass 
+}
+
 static jobject newNetworkStats(JNIEnv *jenv)
 {
-    jobject stats = NULL;
-    jclass statsClass = jenv->FindClass("edu/umich/eac/NetworkStats");
-    if (!statsClass || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw runtime_error("Can't find NetworkStats class");
-    }
-    jmethodID ctor = jenv->GetMethodID(
-        statsClass, "<init>", "()V"
-    );
-    if (!ctor || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw runtime_error("Can't find NetworkStats constructor");
-    }
-    stats = jenv->NewObject(statsClass, ctor);
-    if (!stats || JAVA_EXCEPTION_OCCURRED(jenv)) {
-        throw runtime_error("Can't create NetworkStats java object");
-    }
+    jobject stats = jenv->NewObject(networkStatsClass, networkStatsCtor);
+    checkJavaError(jenv, !stats, "Can't create NetworkStats java object");
     
     return stats;
+}
+
+static jobject newStatsMap(JNIEnv *jenv)
+{
+    jobject theMap = jenv->NewObject(hashMapClass, hashMapCtor);
+    checkJavaError(jenv, !theMap, "Can't create HashMap java object");
+}
+
+static void addMapping(JNIEnv *jenv, jobject mapObj, jint netType, jobject stats)
+{
+    
 }
 
 static void fillField(JNIEnv *jenv, jobject obj, string fieldName, int fieldValue)
@@ -64,9 +99,49 @@ static void fillStats(JNIEnv *jenv, jobject stats, int bw_down, int bw_up, int r
 
 extern "C"
 JNIEXPORT jobject JNICALL 
-Java_edu_umich_eac_NetworkStats_getNetworkStats(JNIEnv *jenv, jclass cls)
+Java_edu_umich_eac_NetworkStats_getBestNetworkStats(JNIEnv *jenv, jclass cls)
 {
     // look at all available networks and pick the one with the best bandwidth.
+
+    jobject stats = NULL;
+    try {
+        stats = newNetworkStats(jenv);
+        fillStats(jenv, stats, 0, 0, 0);
+    } catch (runtime_error& e) {
+        return NULL;
+    }
+    
+    int best_bandwidth = -1;
+    int index = -1;
+
+    vector<struct net_interface> ifaces;
+    bool result = get_local_interfaces(ifaces);
+    if (result) {
+        for (size_t i = 0; i < ifaces.size(); ++i) {
+            int bandwidth_sum = ifaces[i].bandwidth_down + ifaces[i].bandwidth_up;
+            if (bandwidth_sum > best_bandwidth) {
+                best_bandwidth = bandwidth_sum;
+                index = (int) i;
+            }
+        }
+
+        if (index != -1) {
+            struct net_interface& iface = ifaces[index];
+            fillStats(jenv, stats,
+                      iface.bandwidth_down, 
+                      iface.bandwidth_up,
+                      iface.RTT);
+        }
+    }
+
+    return stats;
+}
+
+extern "C"
+JNIEXPORT jobject JNICALL 
+Java_edu_umich_eac_NetworkStats_getAllNetworkStats(JNIEnv *jenv, jclass cls)
+{
+    // look at all available networks and bundle them all as a HashMap.
 
     jobject stats = NULL;
     try {
