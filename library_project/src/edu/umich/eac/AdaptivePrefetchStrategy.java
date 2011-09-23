@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -18,6 +19,7 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import android.content.Context;
+import android.net.ConnectivityManager;
 import android.util.Log;
 import edu.umich.eac.WifiTracker.ConditionChange;
 import edu.umich.eac.WifiTracker.Prediction;
@@ -83,14 +85,16 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private int mEnergySpent;
     private ProcNetworkStats mDataSpent;
     
-    private NetworkStats currentNetworkStats;
-    private NetworkStats averageNetworkStats;
+    // These map TYPE_WIFI or TYPE_MOBILE to the network stats.
+    private Map<Integer, NetworkStats> currentNetworkStats;
+    private Map<Integer, NetworkStats> averageNetworkStats;
     private int numNetworkStatsUpdates;
     
     private MonitorThread monitorThread;
     
     @Override
     public void setup(Context context, Date goalTime, int energyBudget, int dataBudget) {
+        this.context = context;
         try {
             logFileWriter = new PrintWriter(new FileWriter(LOG_FILENAME, true), true);
         } catch (IOException e) {
@@ -106,8 +110,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         
         wifiTracker = new WifiTracker(context);
         
-        currentNetworkStats = NetworkStats.getBestNetworkStats();
-        averageNetworkStats = NetworkStats.getBestNetworkStats();
+        currentNetworkStats = NetworkStats.getAllNetworkStats(context);
+        averageNetworkStats = NetworkStats.getAllNetworkStats(context);
         numNetworkStatsUpdates = 1;
         
         monitorThread = new MonitorThread();
@@ -126,6 +130,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private Date lastStatsUpdate = new Date();
+    private Context context;
     
     private synchronized void updateStats() {
         updateEnergyStats();
@@ -142,8 +147,15 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private synchronized void updateNetworkStats() {
-        currentNetworkStats = NetworkStats.getBestNetworkStats();
-        averageNetworkStats.updateAsAverage(currentNetworkStats, numNetworkStatsUpdates);
+        currentNetworkStats = NetworkStats.getAllNetworkStats(context);
+        for (Integer type : currentNetworkStats.keySet()) {
+            if (currentNetworkStats.containsKey(type) &&
+                averageNetworkStats.containsKey(type)) {
+                NetworkStats oldStats = averageNetworkStats.get(type);
+                NetworkStats newStats = currentNetworkStats.get(type);
+                oldStats.updateAsAverage(newStats, numNetworkStatsUpdates);
+           }
+        }
         numNetworkStatsUpdates++;
     }
 
@@ -294,24 +306,37 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     
     private double currentEnergyCost(FetchFuture<?> prefetch) {
         int datalen = prefetch.bytesToTransfer();
-        NetworkStats stats = currentNetworkStats;
+        NetworkStats wifiStats = currentNetworkStats.get(ConnectivityManager.TYPE_WIFI);
+        NetworkStats mobileStats = currentNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
+        double energyCost = 0.0;
         if (wifiTracker.isWifiAvailable()) {
-            return EnergyEstimates.estimateWifiEnergyCost(datalen, 
-                                                          stats.bandwidthDown,
-                                                          stats.rttMillis);
+            energyCost = EnergyEstimates.estimateWifiEnergyCost(datalen, 
+                                                                wifiStats.bandwidthDown,
+                                                                wifiStats.rttMillis);
         } else {
-            return EnergyEstimates.estimateMobileEnergyCost(datalen, 
-                                                            stats.bandwidthDown,
-                                                            stats.rttMillis);
+            energyCost = EnergyEstimates.estimateMobileEnergyCost(datalen, 
+                                                                  mobileStats.bandwidthDown,
+                                                                  mobileStats.rttMillis);
         }
+        return energyCost / 1000.0; // mJ to J
     }
     
     private double averageEnergyCost(FetchFuture<?> prefetch) {
         int datalen = prefetch.bytesToTransfer();
-        NetworkStats stats = averageNetworkStats;
+        NetworkStats wifiStats = averageNetworkStats.get(ConnectivityManager.TYPE_WIFI);
+        NetworkStats mobileStats = averageNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
+        double wifiEnergyCost = 
+            EnergyEstimates.estimateWifiEnergyCost(datalen, 
+                                                   wifiStats.bandwidthDown,
+                                                   wifiStats.rttMillis);
         
-        //TODO: implement.
-        return 0.0;
+        double mobileEnergyCost = 
+            EnergyEstimates.estimateMobileEnergyCostFromIdle(datalen, 
+                                                             mobileStats.bandwidthDown,
+                                                             mobileStats.rttMillis);
+        
+        double wifiAvailability = wifiTracker.availability();
+        return expectedValue(wifiEnergyCost, mobileEnergyCost, wifiAvailability) / 1000.0;
     }
     
     private double currentNetworkPower() {
@@ -334,7 +359,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
     
     private double averageDataCost(FetchFuture<?> prefetch) {
-        return prefetch.bytesToTransfer() * (1 - wifiTracker.availability());
+        return expectedValue(0, prefetch.bytesToTransfer(), wifiTracker.availability());
     }
 
     private double calculateBenefit(FetchFuture<?> prefetch) {
@@ -342,12 +367,37 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         // averageNetworkStats contains an estimate of the average network conditions
         //   that the fetch might encounter, so estimateFetchTime represents the 
         //   average benefit of prefetching (taking size into account).
-        double benefit = prefetch.estimateFetchTime(averageNetworkStats.bandwidthDown,
-                                                    averageNetworkStats.bandwidthUp,
-                                                    averageNetworkStats.rttMillis);
+        NetworkStats expectedNetworkStats = calculateExpectedNetworkStats();
+        double benefit = prefetch.estimateFetchTime(expectedNetworkStats.bandwidthDown,
+                                                    expectedNetworkStats.bandwidthUp,
+                                                    expectedNetworkStats.rttMillis);
         double accuracy = prefetch.getCache().stats.getPrefetchAccuracy();
-        Log.d(TAG, String.format("Computed prefetch accuracy: %f", accuracy));
+        //Log.d(TAG, String.format("Computed prefetch accuracy: %f", accuracy));
         return (accuracy * benefit);
+    }
+
+    private NetworkStats calculateExpectedNetworkStats() {
+        NetworkStats wifiStats = averageNetworkStats.get(ConnectivityManager.TYPE_WIFI);
+        NetworkStats mobileStats = averageNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
+        
+        double wifiAvailability = wifiTracker.availability();
+        NetworkStats expectedStats = new NetworkStats();
+        expectedStats.bandwidthDown = (int) expectedValue(wifiStats.bandwidthDown,
+                                                          mobileStats.bandwidthDown,
+                                                          wifiAvailability);
+        expectedStats.bandwidthUp = (int) expectedValue(wifiStats.bandwidthUp,
+                                                        mobileStats.bandwidthUp,
+                                                        wifiAvailability);
+        expectedStats.rttMillis = (int) expectedValue(wifiStats.rttMillis,
+                                                      mobileStats.rttMillis,
+                                                      wifiAvailability);
+        return expectedStats;
+    }
+
+    private double expectedValue(double valueIfTrue,
+                                 double valueIfFalse,
+                                 double probability) {
+        return probability * valueIfTrue + (1 - probability) * valueIfFalse;
     }
 
     private WifiTracker wifiTracker;
