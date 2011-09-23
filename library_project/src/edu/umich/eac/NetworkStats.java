@@ -1,5 +1,7 @@
 package edu.umich.eac;
 
+import java.util.Map;
+
 class NetworkStats {
     // TODO: get real network stats.
     public int bandwidthDown = 1250000;
@@ -15,5 +17,8 @@ class NetworkStats {
                      + newStats.rttMillis) / (numPreviousStats + 1);
     }
     
-    static native NetworkStats getNetworkStats();
+    static native NetworkStats getBestNetworkStats();
+    
+    // returns (IP, stats) mapping of all available networks.
+    static native Map<String, NetworkStats> getAllNetworkStats();
 }

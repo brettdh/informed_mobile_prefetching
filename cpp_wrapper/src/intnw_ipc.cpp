@@ -5,6 +5,9 @@
 #include <libcmm_external_ipc.h>
 #include <net_interface.h>
 
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #include <vector>
 #include <string>
 #include <sstream>
@@ -19,11 +22,9 @@ static jmethodID networkStatsCtor;
 static jclass hashMapClass;
 static jmethodID hashMapCtor;
 static jmethodID hashMapPut;
-static jint networkTypeWifi;
-static jint networkTypeMobile;
 
 static void
-checkJavaError(JNIEnf *jenv, bool fail_condition, const char *err_msg)
+checkJavaError(JNIEnv *jenv, bool fail_condition, const char *err_msg)
 {
     if (fail_condition || JAVA_EXCEPTION_OCCURRED(jenv)) {
         throw runtime_error(err_msg);
@@ -35,7 +36,7 @@ static void initCachedJNIData(JNIEnv *jenv)
     networkStatsClass = jenv->FindClass("edu/umich/eac/NetworkStats");
     checkJavaError(jenv, !networkStatsClass, "Can't find NetworkStats class");
 
-    networkStatsCtor = jenv->GetMethodID(statsClass, "<init>", "()V");
+    networkStatsCtor = jenv->GetMethodID(networkStatsClass, "<init>", "()V");
     checkJavaError(jenv, !networkStatsCtor, "Can't find NetworkStats constructor");
     
     hashMapClass = jenv->FindClass("java/util/HashMap");
@@ -47,15 +48,12 @@ static void initCachedJNIData(JNIEnv *jenv)
     const char *putSignature = "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;";
     hashMapPut = jenv->GetMethodID(hashMapClass, "put", putSignature);
     checkJavaError(jenv, !hashMapPut, "Can't find HashMap put method");
-
-    jclass 
 }
 
 static jobject newNetworkStats(JNIEnv *jenv)
 {
     jobject stats = jenv->NewObject(networkStatsClass, networkStatsCtor);
     checkJavaError(jenv, !stats, "Can't create NetworkStats java object");
-    
     return stats;
 }
 
@@ -63,11 +61,17 @@ static jobject newStatsMap(JNIEnv *jenv)
 {
     jobject theMap = jenv->NewObject(hashMapClass, hashMapCtor);
     checkJavaError(jenv, !theMap, "Can't create HashMap java object");
+    return theMap;
 }
 
-static void addMapping(JNIEnv *jenv, jobject mapObj, jint netType, jobject stats)
+static void addMapping(JNIEnv *jenv, jobject mapObj, 
+                       const char *ip_addr, jobject stats)
 {
-    
+    jstring ipAddrString = jenv->NewStringUTF(ip_addr);
+    checkJavaError(jenv, !ipAddrString, "Can't create Java string");
+
+    jobject ret = jenv->CallObjectMethod(mapObj, hashMapPut, ipAddrString, stats);
+    checkJavaError(jenv, false, "HashMap.put threw an exception");
 }
 
 static void fillField(JNIEnv *jenv, jobject obj, string fieldName, int fieldValue)
@@ -141,38 +145,38 @@ extern "C"
 JNIEXPORT jobject JNICALL 
 Java_edu_umich_eac_NetworkStats_getAllNetworkStats(JNIEnv *jenv, jclass cls)
 {
-    // look at all available networks and bundle them all as a HashMap.
+    // look at all available networks and bundle them all as a HashMap of
+    //  (IP, stats) pairs.
 
-    jobject stats = NULL;
+    jobject theMap = NULL;
     try {
-        stats = newNetworkStats(jenv);
-        fillStats(jenv, stats, 0, 0, 0);
+        theMap = newStatsMap(jenv);
+    
+        int best_bandwidth = -1;
+        int index = -1;
+
+        vector<struct net_interface> ifaces;
+        bool result = get_local_interfaces(ifaces);
+        if (result) {
+            char ip_str[INET_ADDRSTRLEN + 1];
+            for (size_t i = 0; i < ifaces.size(); ++i) {
+                struct net_interface& iface = ifaces[index];
+
+                memset(ip_str, 0, sizeof(ip_str));
+                inet_ntop(AF_INET, &iface.ip_addr, ip_str, INET_ADDRSTRLEN);
+
+                jobject stats = newNetworkStats(jenv);
+                fillStats(jenv, stats,
+                          iface.bandwidth_down, 
+                          iface.bandwidth_up,
+                          iface.RTT);
+
+                addMapping(jenv, theMap, ip_str, stats);
+            }
+        }
     } catch (runtime_error& e) {
         return NULL;
     }
-    
-    int best_bandwidth = -1;
-    int index = -1;
 
-    vector<struct net_interface> ifaces;
-    bool result = get_local_interfaces(ifaces);
-    if (result) {
-        for (size_t i = 0; i < ifaces.size(); ++i) {
-            int bandwidth_sum = ifaces[i].bandwidth_down + ifaces[i].bandwidth_up;
-            if (bandwidth_sum > best_bandwidth) {
-                best_bandwidth = bandwidth_sum;
-                index = (int) i;
-            }
-        }
-
-        if (index != -1) {
-            struct net_interface& iface = ifaces[index];
-            fillStats(jenv, stats,
-                      iface.bandwidth_down, 
-                      iface.bandwidth_up,
-                      iface.RTT);
-        }
-    }
-
-    return stats;
+    return theMap;
 }
