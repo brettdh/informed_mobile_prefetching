@@ -23,10 +23,10 @@ public class NativeNetworkStatsTest extends InstrumentationTestCase {
         
         ArrayList<NetworkInterface> systemNets = 
             Collections.list(NetworkInterface.getNetworkInterfaces());
-        assertEquals(systemNets.size(), nets.size());
         for (String ipAddr : nets.keySet()) {
             NetworkInterface iface = 
                 NetworkInterface.getByInetAddress(InetAddress.getByName(ipAddr));
+            assertNotNull(iface);
             assertTrue(systemNets.contains(iface));
             
             NetworkStats stats = nets.get(ipAddr);

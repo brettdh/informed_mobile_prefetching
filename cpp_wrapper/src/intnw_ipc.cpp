@@ -33,6 +33,11 @@ checkJavaError(JNIEnv *jenv, bool fail_condition, const char *err_msg)
 
 static void initCachedJNIData(JNIEnv *jenv)
 {
+    static bool inited = false;
+    if (inited) {
+        return;
+    }
+
     networkStatsClass = jenv->FindClass("edu/umich/eac/NetworkStats");
     checkJavaError(jenv, !networkStatsClass, "Can't find NetworkStats class");
 
@@ -48,6 +53,8 @@ static void initCachedJNIData(JNIEnv *jenv)
     const char *putSignature = "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;";
     hashMapPut = jenv->GetMethodID(hashMapClass, "put", putSignature);
     checkJavaError(jenv, !hashMapPut, "Can't find HashMap put method");
+
+    inited = true;
 }
 
 static jobject newNetworkStats(JNIEnv *jenv)
@@ -105,6 +112,8 @@ extern "C"
 JNIEXPORT jobject JNICALL 
 Java_edu_umich_eac_NetworkStats_getBestNetworkStats(JNIEnv *jenv, jclass cls)
 {
+    initCachedJNIData(jenv);
+
     // look at all available networks and pick the one with the best bandwidth.
 
     jobject stats = NULL;
@@ -145,6 +154,8 @@ extern "C"
 JNIEXPORT jobject JNICALL 
 Java_edu_umich_eac_NetworkStats_getAllNetworkStats(JNIEnv *jenv, jclass cls)
 {
+    initCachedJNIData(jenv);
+
     // look at all available networks and bundle them all as a HashMap of
     //  (IP, stats) pairs.
 
@@ -152,15 +163,12 @@ Java_edu_umich_eac_NetworkStats_getAllNetworkStats(JNIEnv *jenv, jclass cls)
     try {
         theMap = newStatsMap(jenv);
     
-        int best_bandwidth = -1;
-        int index = -1;
-
         vector<struct net_interface> ifaces;
         bool result = get_local_interfaces(ifaces);
         if (result) {
             char ip_str[INET_ADDRSTRLEN + 1];
             for (size_t i = 0; i < ifaces.size(); ++i) {
-                struct net_interface& iface = ifaces[index];
+                struct net_interface& iface = ifaces[i];
 
                 memset(ip_str, 0, sizeof(ip_str));
                 inet_ntop(AF_INET, &iface.ip_addr, ip_str, INET_ADDRSTRLEN);

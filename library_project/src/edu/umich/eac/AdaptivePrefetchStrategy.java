@@ -106,8 +106,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         
         wifiTracker = new WifiTracker(context);
         
-        currentNetworkStats = NetworkStats.getNetworkStats();
-        averageNetworkStats = NetworkStats.getNetworkStats();
+        currentNetworkStats = NetworkStats.getBestNetworkStats();
+        averageNetworkStats = NetworkStats.getBestNetworkStats();
         numNetworkStatsUpdates = 1;
         
         monitorThread = new MonitorThread();
@@ -142,7 +142,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private synchronized void updateNetworkStats() {
-        currentNetworkStats = NetworkStats.getNetworkStats();
+        currentNetworkStats = NetworkStats.getBestNetworkStats();
         averageNetworkStats.updateAsAverage(currentNetworkStats, numNetworkStatsUpdates);
         numNetworkStatsUpdates++;
     }
@@ -261,7 +261,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double energyCostNow = currentEnergyCost(prefetch);
         double dataCostNow = currentDataCost(prefetch);
         
-        double energyCostFuture = averageEnergyCost(prefetch, averageNetworkStats, averageNetworkPower());
+        double energyCostFuture = averageEnergyCost(prefetch);
         double dataCostFuture = averageDataCost(prefetch);
         
         double hintAccuracy = prefetch.getCache().stats.getPrefetchAccuracy();
@@ -310,7 +310,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         int datalen = prefetch.bytesToTransfer();
         NetworkStats stats = averageNetworkStats;
         
-        
+        //TODO: implement.
+        return 0.0;
     }
     
     private double currentNetworkPower() {
