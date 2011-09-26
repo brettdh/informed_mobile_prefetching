@@ -87,8 +87,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     
     // These map TYPE_WIFI or TYPE_MOBILE to the network stats.
     private Map<Integer, NetworkStats> currentNetworkStats;
-    private Map<Integer, NetworkStats> averageNetworkStats;
-    private int numNetworkStatsUpdates;
+    private AverageNetworkStats averageNetworkStats;
     
     private MonitorThread monitorThread;
     
@@ -111,8 +110,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         wifiTracker = new WifiTracker(context);
         
         currentNetworkStats = NetworkStats.getAllNetworkStats(context);
-        averageNetworkStats = NetworkStats.getAllNetworkStats(context);
-        numNetworkStatsUpdates = 1;
+        averageNetworkStats = new AverageNetworkStats();
+        averageNetworkStats.initialize(NetworkStats.getAllNetworkStats(context));
         
         monitorThread = new MonitorThread();
         monitorThread.start();
@@ -149,14 +148,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private synchronized void updateNetworkStats() {
         currentNetworkStats = NetworkStats.getAllNetworkStats(context);
         for (Integer type : currentNetworkStats.keySet()) {
-            if (currentNetworkStats.containsKey(type) &&
-                averageNetworkStats.containsKey(type)) {
-                NetworkStats oldStats = averageNetworkStats.get(type);
-                NetworkStats newStats = currentNetworkStats.get(type);
-                oldStats.updateAsAverage(newStats, numNetworkStatsUpdates);
-           }
+            NetworkStats newStats = currentNetworkStats.get(type);
+            averageNetworkStats.add(type, newStats);
         }
-        numNetworkStatsUpdates++;
     }
 
     class MonitorThread extends Thread {
@@ -255,6 +249,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private boolean shouldIssuePrefetch(FetchFuture<?> prefetch) {
+        updateNetworkStats();
+
         Double cost = calculateCost(prefetch);
         Double benefit = calculateBenefit(prefetch);
         final boolean shouldIssuePrefetch = cost < benefit;
@@ -309,7 +305,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         NetworkStats wifiStats = currentNetworkStats.get(ConnectivityManager.TYPE_WIFI);
         NetworkStats mobileStats = currentNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
         double energyCost = 0.0;
-        if (wifiTracker.isWifiAvailable()) {
+        if (wifiTracker.isWifiAvailable() && wifiStats != null) {
+            // TODO: should try sending on wifi even if I don't have the stats yet.
+            // But: in my experiments, I should have the stats.
             energyCost = EnergyEstimates.estimateWifiEnergyCost(datalen, 
                                                                 wifiStats.bandwidthDown,
                                                                 wifiStats.rttMillis);
@@ -337,17 +335,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         
         double wifiAvailability = wifiTracker.availability();
         return expectedValue(wifiEnergyCost, mobileEnergyCost, wifiAvailability) / 1000.0;
-    }
-    
-    private double currentNetworkPower() {
-        // TODO: use a power model to pick the power coefficient based on available networks.
-        return 0;
-    }
-    
-    private double averageNetworkPower() {
-        // TODO: use a power model to calculate the average power coefficient 
-        //       based on network history.
-        return 0;
     }
 
     private double currentDataCost(FetchFuture<?> prefetch) {
