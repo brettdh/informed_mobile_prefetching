@@ -366,6 +366,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private NetworkStats calculateExpectedNetworkStats() {
         NetworkStats wifiStats = averageNetworkStats.get(ConnectivityManager.TYPE_WIFI);
         NetworkStats mobileStats = averageNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
+        if (wifiStats == null) {
+            return mobileStats;
+        }
         
         double wifiAvailability = wifiTracker.availability();
         NetworkStats expectedStats = new NetworkStats();
