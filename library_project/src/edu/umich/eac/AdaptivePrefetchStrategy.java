@@ -329,9 +329,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                                                    wifiStats.rttMillis);
         
         double mobileEnergyCost = 
-            EnergyEstimates.estimateMobileEnergyCostFromIdle(datalen, 
-                                                             mobileStats.bandwidthDown,
-                                                             mobileStats.rttMillis);
+            EnergyEstimates.estimateMobileEnergyCostAverage(datalen, 
+                                                            mobileStats.bandwidthDown,
+                                                            mobileStats.rttMillis);
         
         double wifiAvailability = wifiTracker.availability();
         return expectedValue(wifiEnergyCost, mobileEnergyCost, wifiAvailability) / 1000.0;
