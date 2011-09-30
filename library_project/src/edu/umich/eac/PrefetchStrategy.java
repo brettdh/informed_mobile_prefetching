@@ -28,7 +28,7 @@ abstract class PrefetchStrategy {
     /**
      * Update the goal time.  Used to synchronize the user-replay script
      *  with the prefetch strategy.
-     * @param newGoalTime new endingn time of the goals.
+     * @param newGoalTime new ending time of the goals.
      */
     public void updateGoalTime(Date newGoalTime) {}
     
