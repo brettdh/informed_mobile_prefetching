@@ -18,6 +18,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.math.optimization.GoalType;
+
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.util.Log;
@@ -73,16 +75,14 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private BlockingQueue<FetchFuture<?> > prefetchesInProgress = 
         new ArrayBlockingQueue<FetchFuture<?> >(NUM_CONCURRENT_PREFETCHES);
     
-    private Date mStartTime;
-    private Date mGoalTime;
-    private int mEnergyBudget;
-    private int mDataBudget;
-    
     private static boolean fixedAdaptiveParamsEnabled = false;
     private static double fixedEnergyWeight;
     private static double fixedDataWeight;
     
-    private int mEnergySpent;
+    private GoalAdaptiveResourceWeight energyWeight;
+    private GoalAdaptiveResourceWeight dataWeight;
+    
+    private int mLastEnergySpent; // in mJ
     private ProcNetworkStats mDataSpent;
     
     // These map TYPE_WIFI or TYPE_MOBILE to the network stats.
@@ -100,11 +100,11 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             Log.e(TAG, "Failed to create log file: " + e.getMessage());
         }
         
-        mStartTime = new Date();
-        mGoalTime = goalTime;
-        mEnergyBudget = energyBudget;
-        mDataBudget = dataBudget;
-        mEnergySpent = 0;
+        double energyBudgetJoules = convertBatteryPercentToJoules(energyBudget);
+        energyWeight = new GoalAdaptiveResourceWeight(energyBudgetJoules, goalTime);
+        dataWeight = new GoalAdaptiveResourceWeight(dataBudget, goalTime);
+        
+        mLastEnergySpent = 0;
         mDataSpent = new ProcNetworkStats(CELLULAR_IFNAME);
         
         wifiTracker = new WifiTracker(context);
@@ -117,9 +117,18 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         monitorThread.start();
     }
     
+    private double convertBatteryPercentToJoules(double energyBudgetBatteryPercent) {
+        // TODO: sanity-check.
+        double charge = 1400.0 * energyBudgetBatteryPercent / 100.0; // mAh
+        double energy = charge * 4.0; // average voltage 4V;  mAh*V, or mWh
+        energy *= 3600; // mWs or mJ
+        return energy / 1000.0; // mJ to J
+    }
+
     @Override
     public void updateGoalTime(Date newGoalTime) {
-        mGoalTime = newGoalTime;
+        energyWeight.updateGoalTime(newGoalTime);
+        dataWeight.updateGoalTime(newGoalTime);
     }
     
     public static void setStaticParams(double energyWeight, double dataWeight) {
@@ -132,17 +141,26 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private Context context;
     
     private synchronized void updateStats() {
-        updateEnergyStats();
-        
-        mDataSpent.updateStats();
         if (System.currentTimeMillis() - lastStatsUpdate.getTime() > 1000) {
+            updateEnergyStats();
             updateNetworkStats();
+            updateDataStats();
         }
         lastStatsUpdate = new Date();
     }
 
+    private synchronized void updateDataStats() {
+        long dataSpent = mDataSpent.getTotalBytes();
+        mDataSpent.updateStats();
+        long dataSpentRecently = mDataSpent.getTotalBytes() - dataSpent;
+        dataWeight.reportSpentResource(dataSpentRecently);
+    }
+
     private synchronized void updateEnergyStats() {
-        // TODO: implement.
+        int energySpent = EnergyEstimates.energyConsumedSinceReset();
+        double newEnergySpent = energySpent - mLastEnergySpent;
+        mLastEnergySpent = energySpent;
+        energyWeight.reportSpentResource(newEnergySpent / 1000.0);
     }
 
     private synchronized void updateNetworkStats() {
@@ -167,7 +185,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                     reevaluateAllDeferredPrefetches();
                     updateStats();
                     Thread.sleep(SAMPLE_PERIOD_MS);
-                } catch (InterruptedException e) { 
+                } catch (InterruptedException e) {
                     break;
                 }
             }
@@ -181,6 +199,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                         prefetchesInProgress.peek().hashCode()));
                 return;
             }
+
+            // TODO: check whether we have new information to prompt re-evaluation?
             
             deferredPrefetches.drainTo(tasksToEvaluate);
             logPrint(String.format("Reevaluating %d deferred prefetches", tasksToEvaluate.size()));
@@ -285,19 +305,17 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private double calculateEnergyWeight() {
         if (fixedAdaptiveParamsEnabled) {
             return fixedEnergyWeight;
+        } else {
+            return energyWeight.getWeight();
         }
-
-        // TODO: tune adaptively based on resource usage history & projection.
-        throw new Error(ADAPTATION_NOT_IMPL_MSG);
     }
 
     private double calculateDataWeight() {
         if (fixedAdaptiveParamsEnabled) {
             return fixedDataWeight;
+        } else {
+            return dataWeight.getWeight();
         }
-
-        // TODO: tune adaptively based on resource usage history & projection.
-        throw new Error(ADAPTATION_NOT_IMPL_MSG);
     }
     
     private double currentEnergyCost(FetchFuture<?> prefetch) {
@@ -391,24 +409,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private WifiTracker wifiTracker;
-    
-    private double timeUntilGoal() {
-        Date now = new Date();
-        return (mGoalTime.getTime() - now.getTime()) / 1000.0;
-    }
-    
-    private double timeSinceStart() {
-        Date now = new Date();
-        return (now.getTime() - mStartTime.getTime()) / 1000.0;
-    }
-    
-    private synchronized double energyUsageRate() {
-        return mEnergySpent / timeSinceStart();
-    }
-    
-    private synchronized double dataUsageRate() {
-        return mDataSpent.getTotalBytes() / timeSinceStart();
-    }
     
     private void issuePrefetch(FetchFuture<?> prefetch) {
         if (alreadyIssued(prefetch)) {

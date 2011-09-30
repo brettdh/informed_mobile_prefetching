@@ -110,4 +110,8 @@ public class GoalAdaptiveResourceWeight {
     public synchronized double getWeight() {
         return weight;
     }
+
+    public synchronized void updateGoalTime(Date newGoalTime) {
+        goalTime = newGoalTime;
+    }
 }
