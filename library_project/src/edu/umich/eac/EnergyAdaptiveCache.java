@@ -115,7 +115,8 @@ public class EnergyAdaptiveCache {
                                long goalTimeEpochMillis,
                                int energyBudget,
                                int dataBudget) {
-        Log.d(TAG, "Created a new EnergyAdaptiveCache");
+        Log.d(TAG, String.format("Created a new EnergyAdaptiveCache; energyBudget %d%%, dataBudget %d bytes",
+                                 energyBudget, dataBudget));
         bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
         fg_executor = Executors.newCachedThreadPool();
 
