@@ -19,8 +19,19 @@ public class GoalAdaptiveResourceWeight {
     
     private double spendingRate = 0.0;
     private Date lastResourceUseSample;
+    private AdaptivePrefetchStrategy strategy;
+    private String type;
     
-    public GoalAdaptiveResourceWeight(double supply, Date goalTime) {
+    private void logPrint(String msg) {
+        if (strategy != null) {
+            strategy.logPrint(msg);
+        }
+    }
+    
+    public GoalAdaptiveResourceWeight(AdaptivePrefetchStrategy strategy, String type,
+                                      double supply, Date goalTime) {
+        this.strategy = strategy;
+        this.type = type;
         initialSupply = supply;
         this.supply = supply;
         this.goalTime = goalTime;
@@ -63,14 +74,26 @@ public class GoalAdaptiveResourceWeight {
     public synchronized void reportSpentResource(double amount) {
         double samplePeriod = secondsSince(lastResourceUseSample);
         lastResourceUseSample = new Date();
+
+        logPrint(String.format("Old %s spending rate: %s   old supply: %s",
+                               type, 
+                               String.valueOf(spendingRate), 
+                               String.valueOf(supply)));
+        logPrint(String.format("current %s spent amount %s over past %s seconds",
+                               type, 
+                               String.valueOf(amount), 
+                               String.valueOf(samplePeriod)));
         
         double rateSample = amount / samplePeriod;
         double alpha = smoothingFactor();
         spendingRate = (1 - alpha) * rateSample + alpha * spendingRate;
         supply -= amount;
         
-        Log.d(TAG, "alpha: " + String.valueOf(alpha));
-        Log.d(TAG, String.format("New spending rate: %f   new supply: %f", spendingRate, supply));
+        logPrint(String.format("New %s spending rate: %s   new supply: %s  (alpha %s)",
+                               type, 
+                               String.valueOf(spendingRate), 
+                               String.valueOf(supply), 
+                               String.valueOf(alpha)));
     }
     
     synchronized void forceUpdateWeight() {
@@ -80,22 +103,26 @@ public class GoalAdaptiveResourceWeight {
     private synchronized void updateWeight() {
         Date now = new Date();
         
-        Log.d(TAG, "Old weight: " + String.valueOf(weight));
+        logPrint(String.format("Old %s weight: %s", type, String.valueOf(weight)));
         // "fudge factor" to avoid overshooting budget.  Borrowed from Odyssey.
         double adjustedSupply = supply - (0.05 * supply + 0.01 * initialSupply);
-        if (adjustedSupply <= 0.0) {
+        if (supply <= 0.0 || adjustedSupply <= 0.0) {
             weight = PROHIBITIVELY_LARGE_WEIGHT;
         } else if (now.after(goalTime)) {
             // goal reached; spend away!  (We shouldn't see this in our experiments.)
             weight = 0.0;
         } else {
             double futureDemand = spendingRate * secondsUntil(goalTime);
-            //Log.d(TAG, String.for)
-            Log.d(TAG, String.format("Future demand: %f  weight %f  multiplier %f",
-                                     futureDemand, weight, futureDemand / adjustedSupply));
+            logPrint(String.format("Future %s demand: %s  weight %s  multiplier %s",
+                                   type, 
+                                   String.valueOf(futureDemand), 
+                                   String.valueOf(weight), 
+                                   String.valueOf(futureDemand / adjustedSupply)));
             weight *= (futureDemand / adjustedSupply);
         }
         weight = Math.max(weight, aggressiveNonZeroWeight());
+        
+        logPrint(String.format("New %s weight: %s", type, String.valueOf(weight)));
     }
     
     private double aggressiveNonZeroWeight() {

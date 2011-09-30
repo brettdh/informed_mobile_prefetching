@@ -32,7 +32,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     static final String TAG = AdaptivePrefetchStrategy.class.getName();
 
     private PrintWriter logFileWriter;
-    private void logPrint(String msg) {
+    void logPrint(String msg) {
         if (logFileWriter != null) {
             final long now = System.currentTimeMillis();
             logFileWriter.println(String.format("%d %s", now, msg));
@@ -46,7 +46,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     
     static class PrefetchTask implements Comparable<PrefetchTask> {
         private Date scheduledTime;
-        private FetchFuture<?> prefetch;
+        FetchFuture<?> prefetch;
         private int order;
         
         /** 
@@ -100,9 +100,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             Log.e(TAG, "Failed to create log file: " + e.getMessage());
         }
         
+        logPrint(String.format("Setup adaptive strategy with energy budget %d%% data budget %d bytes",
+                               energyBudget, dataBudget));
+        
         double energyBudgetJoules = convertBatteryPercentToJoules(energyBudget);
-        energyWeight = new GoalAdaptiveResourceWeight(energyBudgetJoules, goalTime);
-        dataWeight = new GoalAdaptiveResourceWeight(dataBudget, goalTime);
+        energyWeight = new GoalAdaptiveResourceWeight(this, "energy", energyBudgetJoules, goalTime);
+        dataWeight = new GoalAdaptiveResourceWeight(this, "data", dataBudget, goalTime);
         
         mLastEnergySpent = 0;
         mDataSpent = new ProcNetworkStats(CELLULAR_IFNAME);
@@ -145,8 +148,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             updateEnergyStats();
             updateNetworkStats();
             updateDataStats();
+            lastStatsUpdate = new Date();
         }
-        lastStatsUpdate = new Date();
     }
 
     private synchronized void updateDataStats() {
@@ -203,37 +206,31 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             // TODO: check whether we have new information to prompt re-evaluation?
             
             deferredPrefetches.drainTo(tasksToEvaluate);
+            if (tasksToEvaluate.isEmpty()) {
+                logPrint("No prefetches queued");
+                return;
+            }
             logPrint(String.format("Reevaluating %d deferred prefetches", tasksToEvaluate.size()));
 
+            PrefetchBatch batch = new PrefetchBatch();
             while (!tasksToEvaluate.isEmpty()) {
-                PrefetchTask task = tasksToEvaluate.remove();
-                logPrint(String.format("Evaluating prefetch 0x%08x", task.prefetch.hashCode()));
-                if (shouldIssuePrefetch(task.prefetch)) {
-                    //   restart evaluation at beginning, so as to avoid
-                    //   the situation where network conditions change
-                    //   in the middle of reevaluating the list.
-                    //   I know I'm only issuing one prefetch at a time,
-                    //   so don't bother checking the rest of the list.
-                    PrefetchTask firstTask = deferredPrefetches.poll();
-                    if (firstTask != null && shouldIssuePrefetch(firstTask.prefetch)) {
-                        issuePrefetch(firstTask.prefetch);
-                        
-                        deferDecision(task);
-                    } else {
-                        issuePrefetch(task.prefetch);
-
-                        if (firstTask != null) {
-                            deferDecision(firstTask);
-                        }
-                    }
-                    break;
+                batch.addPrefetch(tasksToEvaluate.remove());
+                if (batch.size() > 1) {
+                    logPrint(String.format("Evaluating prefetch 0x%08x batched with %d others", 
+                                           batch.first().prefetch.hashCode(), batch.size() - 1));
                 } else {
-                    deferDecision(task);
+                    logPrint(String.format("Evaluating prefetch 0x%08x", batch.first().prefetch.hashCode()));
+                }
+                if (shouldIssuePrefetch(batch)) {
+                    issuePrefetch(batch.first().prefetch);
+                    batch.pop();
+                    break;
                 }
             }
             
-            // add back any tasks that I didn't evaluate; they'll go to 
+            // add back any tasks that I didn't issue; they'll go to 
             //  their original place in the queue.
+            batch.drainTo(deferredPrefetches);
             tasksToEvaluate.drainTo(deferredPrefetches);
         }
         
@@ -268,35 +265,53 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         deferDecision(new PrefetchTask(prefetch));
     }
 
-    private boolean shouldIssuePrefetch(FetchFuture<?> prefetch) {
+    private boolean shouldIssuePrefetch(PrefetchBatch batch) {
         updateNetworkStats();
 
-        Double cost = calculateCost(prefetch);
-        Double benefit = calculateBenefit(prefetch);
+        Double cost = calculateCost(batch);
+        Double benefit = calculateBenefit(batch);
         final boolean shouldIssuePrefetch = cost < benefit;
         
         logPrint(String.format("Cost = %s; benefit = %s; %s prefetch 0x%08x", 
                                cost.toString(), benefit.toString(),
                                shouldIssuePrefetch ? "issuing" : "deferring",
-                               prefetch.hashCode()));
+                               batch.first().hashCode()));
         return shouldIssuePrefetch;
     }
     
-    private double calculateCost(FetchFuture<?> prefetch) {
+    private double calculateCost(PrefetchBatch batch) {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
         
-        double energyCostNow = currentEnergyCost(prefetch);
-        double dataCostNow = currentDataCost(prefetch);
+        double energyCostNow = currentEnergyCost(batch);
+        double dataCostNow = currentDataCost(batch);
         
-        double energyCostFuture = averageEnergyCost(prefetch);
-        double dataCostFuture = averageDataCost(prefetch);
+        double energyCostFuture = averageEnergyCost(batch);
+        double dataCostFuture = averageDataCost(batch);
         
-        double hintAccuracy = prefetch.getCache().stats.getPrefetchAccuracy();
+        double hintAccuracy = batch.first().prefetch.getCache().stats.getPrefetchAccuracy();
         double energyCostDelta = energyCostNow - (hintAccuracy * energyCostFuture);
         double dataCostDelta = dataCostNow - (hintAccuracy * dataCostFuture);
         
-        return (energyWeight * energyCostDelta) + (dataWeight * dataCostDelta);
+        double weightedEnergyCost = energyWeight * energyCostDelta;
+        double weightedDataCost = dataWeight * dataCostDelta;
+        double totalCost = weightedEnergyCost + weightedDataCost;
+        logCost("Energy", energyCostNow, energyCostFuture, energyCostDelta,
+                energyWeight, weightedEnergyCost);
+        logCost("Data", dataCostNow, dataCostFuture, dataCostDelta, 
+                dataWeight, weightedDataCost);
+        logPrint(String.format("Total cost: %s", String.valueOf(totalCost)));
+        return totalCost;
+    }
+
+    private void logCost(String type, 
+                         double costNow, double costFuture, double costDelta,
+                         double weight, double weightedCost) {
+        logPrint(String.format("%s cost:  now %s later %s delta %s weight %s  weighted cost %s",
+                               type,
+                               String.valueOf(costNow), String.valueOf(costFuture),
+                               String.valueOf(costDelta), String.valueOf(weight),
+                               String.valueOf(weightedCost)));
     }
 
     private static final String ADAPTATION_NOT_IMPL_MSG =
@@ -318,8 +333,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
     
-    private double currentEnergyCost(FetchFuture<?> prefetch) {
-        int datalen = prefetch.bytesToTransfer();
+    private double currentEnergyCost(PrefetchBatch batch) {
+        int datalen = batch.bytesToTransfer();
         NetworkStats wifiStats = currentNetworkStats.get(ConnectivityManager.TYPE_WIFI);
         NetworkStats mobileStats = currentNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
         double energyCost = 0.0;
@@ -337,8 +352,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return energyCost / 1000.0; // mJ to J
     }
     
-    private double averageEnergyCost(FetchFuture<?> prefetch) {
-        int datalen = prefetch.bytesToTransfer();
+    private double averageEnergyCost(PrefetchBatch batch) {
+        int datalen = batch.bytesToTransfer();
         NetworkStats wifiStats = averageNetworkStats.get(ConnectivityManager.TYPE_WIFI);
         NetworkStats mobileStats = averageNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
         double wifiEnergyCost = 
@@ -355,28 +370,28 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return expectedValue(wifiEnergyCost, mobileEnergyCost, wifiAvailability) / 1000.0;
     }
 
-    private double currentDataCost(FetchFuture<?> prefetch) {
+    private double currentDataCost(PrefetchBatch batch) {
         if (!wifiTracker.isWifiAvailable()) {
-            return prefetch.bytesToTransfer();
+            return batch.bytesToTransfer();
         } else {
             return 0;
         }
     }
     
-    private double averageDataCost(FetchFuture<?> prefetch) {
-        return expectedValue(0, prefetch.bytesToTransfer(), wifiTracker.availability());
+    private double averageDataCost(PrefetchBatch batch) {
+        return expectedValue(0, batch.bytesToTransfer(), wifiTracker.availability());
     }
 
-    private double calculateBenefit(FetchFuture<?> prefetch) {
+    private double calculateBenefit(PrefetchBatch batch) {
         // Application implements this computation.
         // averageNetworkStats contains an estimate of the average network conditions
         //   that the fetch might encounter, so estimateFetchTime represents the 
         //   average benefit of prefetching (taking size into account).
         NetworkStats expectedNetworkStats = calculateExpectedNetworkStats();
-        double benefit = prefetch.estimateFetchTime(expectedNetworkStats.bandwidthDown,
-                                                    expectedNetworkStats.bandwidthUp,
-                                                    expectedNetworkStats.rttMillis);
-        double accuracy = prefetch.getCache().stats.getPrefetchAccuracy();
+        double benefit = batch.estimateFetchTime(expectedNetworkStats.bandwidthDown,
+                                                 expectedNetworkStats.bandwidthUp,
+                                                 expectedNetworkStats.rttMillis);
+        double accuracy = batch.first().prefetch.getCache().stats.getPrefetchAccuracy();
         //Log.d(TAG, String.format("Computed prefetch accuracy: %f", accuracy));
         return (accuracy * benefit);
     }

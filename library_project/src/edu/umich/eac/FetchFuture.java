@@ -61,12 +61,12 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         return fetcher.labeledFetcher.bytesToTransfer();
     }
 
-    public double estimateFetchTime(int worstBandwidthDown,
-                                    int worstBandwidthUp,
-                                    int worstRTT) {
-        return fetcher.labeledFetcher.estimateFetchTime(worstBandwidthDown,
-                                                        worstBandwidthUp,
-                                                        worstRTT);
+    public double estimateFetchTime(int bandwidthDown,
+                                    int bandwidthUp,
+                                    int rttMillis) {
+        return fetcher.labeledFetcher.estimateFetchTime(bandwidthDown,
+                                                        bandwidthUp,
+                                                        rttMillis);
     }
 
     FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_) {
