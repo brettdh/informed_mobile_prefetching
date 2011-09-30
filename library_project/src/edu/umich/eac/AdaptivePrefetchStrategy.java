@@ -100,8 +100,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             Log.e(TAG, "Failed to create log file: " + e.getMessage());
         }
         
-        logPrint(String.format("Setup adaptive strategy with energy budget %d%% data budget %d bytes",
-                               energyBudget, dataBudget));
+        long millisUntilGoal = goalTime.getTime() - System.currentTimeMillis();
+        logPrint(String.format("Setup adaptive strategy with energy budget %d%% data budget %d bytes  goal %d ms from now",
+                               energyBudget, dataBudget, millisUntilGoal));
         
         double energyBudgetJoules = convertBatteryPercentToJoules(energyBudget);
         energyWeight = new GoalAdaptiveResourceWeight(this, "energy", energyBudgetJoules, goalTime);

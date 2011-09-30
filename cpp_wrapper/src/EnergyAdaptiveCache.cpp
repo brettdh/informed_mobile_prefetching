@@ -186,11 +186,16 @@ EnergyAdaptiveCache::init(JNIEnv *jenv, jobject context,
         fatal_error("Can't find EAC constructor");
     }
     jobject prefetchType = getEnumValue(jenv, type);
+    jlong goalTimeMillis = goalTime.tv_sec * 1000 + goalTime.tv_usec / 1000;
+    
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    jlong nowMillis = now.tv_sec * 1000 + now.tv_usec / 1000;
+    jlong goalDuration = goalTimeMillis - nowMillis;
 
     eac_dprintf("Creating new Java EnergyAdaptiveCache object; "
-                "energyBudget %d%% dataBudget %d bytes\n",
-                energyBudget, dataBudget);
-    jlong goalTimeMillis = goalTime.tv_sec * 1000 + goalTime.tv_usec / 1000;
+                "energyBudget %d%% dataBudget %d bytes goalDuration %ll\n",
+                energyBudget, dataBudget, goalDuration);
     jobject local = jenv->NewObject(cacheClazz, ctor, context, prefetchType,
                                     goalTimeMillis, energyBudget, dataBudget);
     if (!local || JAVA_EXCEPTION_OCCURRED(jenv) ||
