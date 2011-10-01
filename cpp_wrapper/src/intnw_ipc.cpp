@@ -81,7 +81,7 @@ static void addMapping(JNIEnv *jenv, jobject mapObj,
     jobject ipAddrInteger = jenv->NewObject(integerClass, integerCtor, ip_addr);
     checkJavaError(jenv, !ipAddrInteger, "Can't create Java Integer");
 
-    jobject ret = jenv->CallObjectMethod(mapObj, hashMapPut, ipAddrInteger, stats);
+    (void) jenv->CallObjectMethod(mapObj, hashMapPut, ipAddrInteger, stats);
     checkJavaError(jenv, false, "HashMap.put threw an exception");
 }
 

@@ -115,13 +115,6 @@ public class EnergyAdaptiveCache {
                                long goalTimeEpochMillis,
                                int energyBudget,
                                int dataBudget) {
-        Log.d(TAG, String.format("Created a new EnergyAdaptiveCache; energyBudget %d%%, dataBudget %d bytes",
-                                 energyBudget, dataBudget));
-        bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
-        fg_executor = Executors.newCachedThreadPool();
-
-        logEvent("new-run", 0);
-        
         long nowMillis = System.currentTimeMillis();
         if (goalTimeEpochMillis > nowMillis) {
             relGoalTimeEpochMillis = goalTimeEpochMillis - nowMillis;
@@ -129,6 +122,13 @@ public class EnergyAdaptiveCache {
             relGoalTimeEpochMillis = 0;
         }
         Date goalTime = new Date(goalTimeEpochMillis);
+        
+        Log.d(TAG, String.format("Created a new EnergyAdaptiveCache; energyBudget %d%%, dataBudget %d bytes  goalTimeEpochMillis %d  goal %d ms from now",
+                                 energyBudget, dataBudget, goalTimeEpochMillis, relGoalTimeEpochMillis));
+        bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
+        fg_executor = Executors.newCachedThreadPool();
+
+        logEvent("new-run", 0);
         strategy = PrefetchStrategy.create(context, strategyType, goalTime, 
                                            energyBudget, dataBudget);
     }

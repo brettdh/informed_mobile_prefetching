@@ -88,6 +88,6 @@ javaExceptionOccurred(JNIEnv *jenv, const char *file, int line)
 void
 fatal_error(const string& str)
 {
-    eac_dprintf("Fatal error: %s\n");
+    eac_dprintf("Fatal error: %s\n", str.c_str());
     throw std::runtime_error(str);
 }
