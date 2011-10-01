@@ -7,7 +7,7 @@ import java.util.TimerTask;
 import android.util.Log;
 
 public class GoalAdaptiveResourceWeight {
-    private static final int UPDATE_DURATION_MILLIS = 15000;
+    private static final int UPDATE_DURATION_MILLIS = 1000;
     private static final double PROHIBITIVELY_LARGE_WEIGHT = 99999999;
     private static final String TAG = GoalAdaptiveResourceWeight.class.getName();
     private double supply;
