@@ -26,6 +26,7 @@ import android.util.Log;
 import edu.umich.eac.WifiTracker.ConditionChange;
 import edu.umich.eac.WifiTracker.Prediction;
 import edu.umich.libpowertutor.EnergyEstimates;
+import edu.umich.libpowertutor.EnergyUsage;
 
 public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private static final String LOG_FILENAME = "/sdcard/intnw/adaptive_prefetch_decisions.log";
@@ -83,6 +84,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private GoalAdaptiveResourceWeight dataWeight;
     
     private int mLastEnergySpent; // in mJ
+    private EnergyUsage energyUsage;
     private ProcNetworkStats mDataSpent;
     
     // These map TYPE_WIFI or TYPE_MOBILE to the network stats.
@@ -109,6 +111,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         dataWeight = new GoalAdaptiveResourceWeight(this, "data", dataBudget, goalTime);
         
         mLastEnergySpent = 0;
+        energyUsage = new EnergyUsage();
         mDataSpent = new ProcNetworkStats(CELLULAR_IFNAME);
         
         wifiTracker = new WifiTracker(context);
@@ -161,7 +164,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private synchronized void updateEnergyStats() {
-        int energySpent = EnergyEstimates.energyConsumedSinceReset();
+        int energySpent = energyUsage.energyConsumed();
         double newEnergySpent = energySpent - mLastEnergySpent;
         mLastEnergySpent = energySpent;
         energyWeight.reportSpentResource(newEnergySpent / 1000.0);
