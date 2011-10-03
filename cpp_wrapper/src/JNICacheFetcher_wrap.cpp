@@ -226,6 +226,8 @@ SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(JNIEnv *
   boost::shared_ptr< JNICacheFetcher > *smartarg1 = 0 ;
   void *result = 0 ;
   
+  if (!jenv) { return 0; } // BDH: for static linker coercion only.
+  
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
@@ -244,6 +246,8 @@ SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1bytesToTransf
   boost::shared_ptr< JNICacheFetcher > *smartarg1 = 0 ;
   int result;
   
+  if (!jenv) { return 0; } // BDH: for static linker coercion only.
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
@@ -264,6 +268,8 @@ SWIGEXPORT jdouble JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1estimateFe
   boost::shared_ptr< JNICacheFetcher > *smartarg1 = 0 ;
   double result;
   
+  if (!jenv) { return 0; } // BDH: for static linker coercion only.
+
   (void)jenv;
   (void)jcls;
   (void)jarg1_;
@@ -283,6 +289,8 @@ SWIGEXPORT void JNICALL Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(JNIEnv
   JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;
   boost::shared_ptr< JNICacheFetcher > *smartarg1 = 0 ;
   
+  if (!jenv) { return; } // BDH: for static linker coercion only.
+
   (void)jenv;
   (void)jcls;
   

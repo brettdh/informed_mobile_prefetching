@@ -10,14 +10,10 @@ public class NativeCancelTest extends InstrumentationTestCase {
     protected native void setUp(Context context);
     protected native void tearDown();
     
-    // These don't pass right now due to a weird uncaught 
-    //  Future::CancellationException in the native code.
-    // TODO: come back and fix it.
-    private native void testGetTimeout();
-    private native void testCancel();
+    public native void testGetTimeout();
+    public native void testCancel();
     
     static {
-        System.loadLibrary("eac_native");
         System.loadLibrary("eac_native_tests");
     }
 }

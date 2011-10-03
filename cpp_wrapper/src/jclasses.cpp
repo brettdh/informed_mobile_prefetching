@@ -28,6 +28,34 @@ jclass JClasses::Future = NULL;
 jclass JClasses::Assert = NULL;
 jclass JClasses::PrefetchStrategyType = NULL;
 
+
+#ifndef SWIGEXPORT
+# if defined(_WIN32) || defined(__WIN32__) || defined(__CYGWIN__)
+#   if defined(STATIC_LINKED)
+#     define SWIGEXPORT
+#   else
+#     define SWIGEXPORT __declspec(dllexport)
+#   endif
+# else
+#   if defined(__GNUC__) && defined(GCC_HASCLASSVISIBILITY)
+#     define SWIGEXPORT __attribute__ ((visibility("default")))
+#   else
+#     define SWIGEXPORT
+#   endif
+# endif
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_, jint jarg2);
+SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1bytesToTransfer(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_);
+SWIGEXPORT jdouble JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1estimateFetchTime(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_, jint jarg2, jint jarg3, jint jarg4);
+SWIGEXPORT void JNICALL Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(JNIEnv *jenv, jclass jcls, jint jarg1);
+#ifdef __cplusplus
+}
+#endif
+
 void
 JClasses::init(JNIEnv *jenv)
 {
@@ -44,4 +72,10 @@ JClasses::init(JNIEnv *jenv)
     } catch (std::runtime_error& e) {
         eac_dprintf("failed loading class: %s\n", e.what());
     }
+
+    // force the linker to pull in these symbols
+    Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(NULL, NULL, 0, NULL, 0);
+    Java_edu_umich_eac_eacJNI_JNICacheFetcher_1bytesToTransfer(NULL, NULL, 0, NULL);
+    Java_edu_umich_eac_eacJNI_JNICacheFetcher_1estimateFetchTime(NULL, NULL, 0, NULL, 0, 0, 0);
+    Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(NULL, NULL, 0);
 }

@@ -5,9 +5,9 @@ LIBCMM_ROOT := $(MY_ANDROID_SRC_ROOT)/external/bdh_apps/libcmm
 
 include $(CLEAR_VARS)
 
-LOCAL_MODULE := eac_native
-LOCAL_SRC_FILES := ../../../cpp_wrapper/libs/armeabi/libeac_native.so
-include $(PREBUILT_SHARED_LIBRARY)
+LOCAL_MODULE := eac_native_static
+LOCAL_SRC_FILES := ../../../cpp_wrapper/obj/local/armeabi/libeac_native_static.a
+include $(PREBUILT_STATIC_LIBRARY)
 
 include $(CLEAR_VARS)
 
@@ -17,8 +17,8 @@ LOCAL_C_INCLUDES := $(LOCAL_PATH)/../../../cpp_wrapper/include $(LIBCMM_ROOT)
 LOCAL_SRC_FILES := \
 	native_tests.cpp native_promotion_test.cpp native_cancel_test.cpp\
 	jniunit.cpp utility.cpp
-LOCAL_SHARED_LIBRARIES := libeac_native
-#LOCAL_LDFLAGS := -L$(MY_OUT)/obj/lib -Wl,-rpath-link=$(MY_OUT)/obj/lib\
-#		 -leac_native
+LOCAL_STATIC_LIBRARIES := libeac_native_static
+LOCAL_CFLAGS := -g -ggdb -O0 -Wall -Werror
 
+LOCAL_LDLIBS := -llog
 include $(BUILD_SHARED_LIBRARY)

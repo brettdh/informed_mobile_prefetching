@@ -28,6 +28,7 @@ public:
         while (true) {
             thread_sleep(3600 * 1000);
         }
+        return NULL;
     }
     virtual int bytesToTransfer() {
         return 0;
@@ -80,7 +81,7 @@ Java_edu_umich_eac_NativeCancelTest_testGetTimeout(
 {
     try {
         try {
-            void *nothing = future->get(1, SECONDS);
+            (void) future->get(1, SECONDS);
             fail(jenv, "Should have thrown TimeoutException");
         } catch (Future::TimeoutException e) {
             assertFalse(jenv, "Future not done after timeout", future->isDone());
@@ -92,6 +93,7 @@ Java_edu_umich_eac_NativeCancelTest_testGetTimeout(
     }
 }
     
+
 CDECL JNIEXPORT void JNICALL 
 Java_edu_umich_eac_NativeCancelTest_testCancel(
     JNIEnv *jenv, jobject jobj)
@@ -101,15 +103,14 @@ Java_edu_umich_eac_NativeCancelTest_testCancel(
         assertTrue(jenv, "cancel succeeds", ret);
         assertTrue(jenv, "Future is cancelled", future->isCancelled());
         assertTrue(jenv, "Future is not done after cancel", future->isDone());
-        try {
-            void *nothing = future->get(1, SECONDS);
-            fail(jenv, "Cancelled Future.get() should throw CancellationException");
-        } catch (Future::TimeoutException& e) {
-            fail(jenv, "Cancelled Future.get() should fail outright, not time out");
-        } catch (Future::CancellationException& e) {
-            // success
-            assertTrue(jenv, "Cancelled Future.get() throws CancellationException", true);
-        }
+        
+        (void) future->get(1, SECONDS);
+        fail(jenv, "Cancelled Future.get() should throw CancellationException");
+    } catch (const Future::TimeoutException& e) {
+        fail(jenv, "Cancelled Future.get() should fail outright, not time out");
+    } catch (const Future::CancellationException& e) {
+        // success
+        assertTrue(jenv, "Cancelled Future.get() throws CancellationException", true);
     } catch (jniunit::AssertionException& e) {
         // test failed; junit will detect it
         eac_dprintf("testCancel failed: exception: %s\n", e.what());
@@ -117,4 +118,3 @@ Java_edu_umich_eac_NativeCancelTest_testCancel(
         eac_dprintf("testCancel failed: runtime_error: %s\n", e.what());
     }
 }
-

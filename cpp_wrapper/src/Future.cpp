@@ -75,6 +75,9 @@ static void throwNativeException(JNIEnv *jenv, jthrowable err)
     }
     
     if (jenv->IsInstanceOf(err, cancel_exception)) {
+        //eac_dprintf("ATTACH DEBUGGER NOW!\n");
+        //sleep(60);
+
         oss << " Future::CancellationException";
         throw Future::CancellationException(oss.str());
     } else if (jenv->IsInstanceOf(err, timeout_exception)) {
