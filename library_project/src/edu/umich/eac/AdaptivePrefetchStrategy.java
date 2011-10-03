@@ -106,7 +106,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         logPrint(String.format("Setup adaptive strategy with energy budget %d%% data budget %d bytes  goal %d ms from now",
                                energyBudget, dataBudget, millisUntilGoal));
         
-        double energyBudgetJoules = convertBatteryPercentToJoules(energyBudget);
+        double energyBudgetJoules = EnergyEstimates.convertBatteryPercentToJoules(energyBudget);
         energyWeight = new GoalAdaptiveResourceWeight(this, "energy", energyBudgetJoules, goalTime);
         dataWeight = new GoalAdaptiveResourceWeight(this, "data", dataBudget, goalTime);
         
@@ -124,14 +124,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         monitorThread.start();
     }
     
-    private double convertBatteryPercentToJoules(double energyBudgetBatteryPercent) {
-        // TODO: sanity-check.
-        double charge = 1400.0 * energyBudgetBatteryPercent / 100.0; // mAh
-        double energy = charge * 4.0; // average voltage 4V;  mAh*V, or mWh
-        energy *= 3600; // mWs or mJ
-        return energy / 1000.0; // mJ to J
-    }
-
     @Override
     public void updateGoalTime(Date newGoalTime) {
         energyWeight.updateGoalTime(newGoalTime);
@@ -360,17 +352,20 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         int datalen = batch.bytesToTransfer();
         NetworkStats wifiStats = averageNetworkStats.get(ConnectivityManager.TYPE_WIFI);
         NetworkStats mobileStats = averageNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
-        double wifiEnergyCost = 
-            EnergyEstimates.estimateWifiEnergyCost(datalen, 
-                                                   wifiStats.bandwidthDown,
-                                                   wifiStats.rttMillis);
-        
+
         double mobileEnergyCost = 
             EnergyEstimates.estimateMobileEnergyCostAverage(datalen, 
                                                             mobileStats.bandwidthDown,
                                                             mobileStats.rttMillis);
+        if (wifiStats == null) {
+            return mobileEnergyCost / 1000.0;
+        }
         
         double wifiAvailability = wifiTracker.availability();
+        double wifiEnergyCost = 
+            EnergyEstimates.estimateWifiEnergyCost(datalen, 
+                                                   wifiStats.bandwidthDown,
+                                                   wifiStats.rttMillis);
         return expectedValue(wifiEnergyCost, mobileEnergyCost, wifiAvailability) / 1000.0;
     }
 
