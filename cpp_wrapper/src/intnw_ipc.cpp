@@ -116,6 +116,11 @@ extern "C"
 JNIEXPORT jobject JNICALL 
 Java_edu_umich_eac_NetworkStats_getBestNetworkStats(JNIEnv *jenv, jclass cls)
 {
+    if (!jenv) {
+        // for linker coercion only.
+        return NULL;
+    }
+
     initCachedJNIData(jenv);
 
     // look at all available networks and pick the one with the best bandwidth.
@@ -158,6 +163,11 @@ extern "C"
 JNIEXPORT jobject JNICALL 
 Java_edu_umich_eac_NetworkStats_getAllNetworkStatsByIp(JNIEnv *jenv, jclass cls)
 {
+    if (!jenv) {
+        // for linker coercion only.
+        return NULL;
+    }
+
     initCachedJNIData(jenv);
 
     // look at all available networks and bundle them all as a HashMap of

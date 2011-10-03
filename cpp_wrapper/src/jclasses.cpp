@@ -52,6 +52,9 @@ SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(JNIEnv *
 SWIGEXPORT jint JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1bytesToTransfer(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_);
 SWIGEXPORT jdouble JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1estimateFetchTime(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_, jint jarg2, jint jarg3, jint jarg4);
 SWIGEXPORT void JNICALL Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(JNIEnv *jenv, jclass jcls, jint jarg1);
+
+JNIEXPORT jobject JNICALL Java_edu_umich_eac_NetworkStats_getBestNetworkStats(JNIEnv *jenv, jclass jcls);
+JNIEXPORT jobject JNICALL Java_edu_umich_eac_NetworkStats_getAllNetworkStatsByIp(JNIEnv *jenv, jclass jcls);
 #ifdef __cplusplus
 }
 #endif
@@ -74,8 +77,11 @@ JClasses::init(JNIEnv *jenv)
     }
 
     // force the linker to pull in these symbols
+    // TODO: there's got to be a better way.  find it.
     Java_edu_umich_eac_eacJNI_JNICacheFetcher_1call(NULL, NULL, 0, NULL, 0);
     Java_edu_umich_eac_eacJNI_JNICacheFetcher_1bytesToTransfer(NULL, NULL, 0, NULL);
     Java_edu_umich_eac_eacJNI_JNICacheFetcher_1estimateFetchTime(NULL, NULL, 0, NULL, 0, 0, 0);
     Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(NULL, NULL, 0);
+    Java_edu_umich_eac_NetworkStats_getBestNetworkStats(NULL, NULL);
+    Java_edu_umich_eac_NetworkStats_getAllNetworkStatsByIp(NULL, NULL);
 }
