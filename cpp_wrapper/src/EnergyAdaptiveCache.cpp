@@ -129,13 +129,13 @@ EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv, jobject context,
 {
     struct timeval dummy;
     gettimeofday(&dummy, NULL);
-    init(jenv, context, type, dummy, 0, 0);
+    init(jenv, context, type, dummy, 0.0, 0);
 }
 
 EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv, jobject context,
                                          enum PrefetchStrategyType type,
                                          struct timeval goalTime,
-                                         int energyBudget, int dataBudget)
+                                         double energyBudget, int dataBudget)
 {
     init(jenv, context, type, goalTime, energyBudget, dataBudget);
 }
@@ -143,7 +143,7 @@ EnergyAdaptiveCache::EnergyAdaptiveCache(JNIEnv *jenv, jobject context,
 void 
 EnergyAdaptiveCache::init(JNIEnv *jenv, jobject context,
                           enum PrefetchStrategyType type,
-                          struct timeval goalTime, int energyBudget, int dataBudget)
+                          struct timeval goalTime, double energyBudget, int dataBudget)
 {
     vm = NULL;
     cacheClazz = NULL;
@@ -180,7 +180,7 @@ EnergyAdaptiveCache::init(JNIEnv *jenv, jobject context,
     }
     jmethodID ctor = jenv->GetMethodID(
         cacheClazz, "<init>", 
-        "(Landroid/content/Context;Ledu/umich/eac/PrefetchStrategyType;JII)V"
+        "(Landroid/content/Context;Ledu/umich/eac/PrefetchStrategyType;JDI)V"
     );
     if (!ctor || JAVA_EXCEPTION_OCCURRED(jenv)) {
         fatal_error("Can't find EAC constructor");
@@ -196,7 +196,7 @@ EnergyAdaptiveCache::init(JNIEnv *jenv, jobject context,
     jlong goalDuration = goalTimeMillis - nowMillis;
 
     eac_dprintf("Creating new Java EnergyAdaptiveCache object; "
-                "energyBudget %d%% dataBudget %d bytes goalTimeMillis %lld  goalDuration %lld\n",
+                "energyBudget %.3f%% dataBudget %d bytes goalTimeMillis %lld  goalDuration %lld\n",
                 energyBudget, dataBudget, goalTimeMillis, goalDuration);
     jobject local = jenv->NewObject(cacheClazz, ctor, context, prefetchType,
                                     goalTimeMillis, energyBudget, dataBudget);

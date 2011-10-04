@@ -94,7 +94,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private MonitorThread monitorThread;
     
     @Override
-    public void setup(Context context, Date goalTime, int energyBudget, int dataBudget) {
+    public void setup(Context context, Date goalTime, double energyBudget, int dataBudget) {
+        super.setup(context, goalTime, energyBudget, dataBudget);
+        
         this.context = context;
         try {
             logFileWriter = new PrintWriter(new FileWriter(LOG_FILENAME, true), true);
@@ -103,7 +105,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
         
         long millisUntilGoal = goalTime.getTime() - System.currentTimeMillis();
-        logPrint(String.format("Setup adaptive strategy with energy budget %d%% data budget %d bytes  goal %d ms from now",
+        logPrint(String.format("Setup adaptive strategy with energy budget %.3f%% data budget %d bytes  goal %d ms from now",
                                energyBudget, dataBudget, millisUntilGoal));
         
         double energyBudgetJoules = EnergyEstimates.convertBatteryPercentToJoules(energyBudget);
@@ -113,8 +115,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         mLastEnergySpent = 0;
         energyUsage = new EnergyUsage();
         mDataSpent = new ProcNetworkStats(CELLULAR_IFNAME);
-        
-        wifiTracker = new WifiTracker(context);
         
         currentNetworkStats = NetworkStats.getAllNetworkStats(context);
         averageNetworkStats = new AverageNetworkStats();
@@ -422,8 +422,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return probability * valueIfTrue + (1 - probability) * valueIfFalse;
     }
 
-    private WifiTracker wifiTracker;
-    
     private void issuePrefetch(FetchFuture<?> prefetch) {
         if (alreadyIssued(prefetch)) {
             return;

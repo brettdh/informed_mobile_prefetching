@@ -22,7 +22,7 @@ class EnergyAdaptiveCache {
 public:
     EnergyAdaptiveCache(JNIEnv *env, jobject context, PrefetchStrategyType type);
     EnergyAdaptiveCache(JNIEnv *env, jobject context, PrefetchStrategyType type,
-                        struct timeval goalTime, int energyBudget, int dataBudget);
+                        struct timeval goalTime, double energyBudget, int dataBudget);
     ~EnergyAdaptiveCache();
 
     // update the goal time of this cache to be
@@ -58,7 +58,7 @@ public:
     };
 private:
     void init(JNIEnv *env, jobject context, PrefetchStrategyType type,
-              struct timeval goalTime, int energyBudget, int dataBudget);
+              struct timeval goalTime, double energyBudget, int dataBudget);
     Future * prefetch(JNICacheFetcherPtr fetcher, bool now, bool demand);
     
     JavaVM *vm;

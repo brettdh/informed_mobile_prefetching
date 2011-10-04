@@ -57,9 +57,9 @@ static void initCachedJNIData(JNIEnv *jenv)
 
 static jobject newNetworkStats(JNIEnv *jenv)
 {
-    eac_dprintf("JNIEnv ptr: %p\n", jenv);
-    eac_dprintf("networkStatsClass ptr: %p\n", networkStatsClass);
-    eac_dprintf("networkStatsCtor ptr: %p\n", networkStatsCtor);
+    //eac_dprintf("JNIEnv ptr: %p\n", jenv);
+    //eac_dprintf("networkStatsClass ptr: %p\n", networkStatsClass);
+    //eac_dprintf("networkStatsCtor ptr: %p\n", networkStatsCtor);
     jobject stats = jenv->NewObject(networkStatsClass, networkStatsCtor);
     checkJavaError(jenv, !stats, "Can't create NetworkStats java object");
     return stats;
@@ -67,9 +67,9 @@ static jobject newNetworkStats(JNIEnv *jenv)
 
 static jobject newStatsMap(JNIEnv *jenv)
 {
-    eac_dprintf("JNIEnv ptr: %p\n", jenv);
-    eac_dprintf("hashMapClass ptr: %p\n", hashMapClass);
-    eac_dprintf("hashMapCtor ptr: %p\n", hashMapCtor);
+    //eac_dprintf("JNIEnv ptr: %p\n", jenv);
+    //eac_dprintf("hashMapClass ptr: %p\n", hashMapClass);
+    //eac_dprintf("hashMapCtor ptr: %p\n", hashMapCtor);
     jobject theMap = jenv->NewObject(hashMapClass, hashMapCtor);
     checkJavaError(jenv, !theMap, "Can't create HashMap java object");
     return theMap;

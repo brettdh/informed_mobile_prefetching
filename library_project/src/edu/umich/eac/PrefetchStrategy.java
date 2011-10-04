@@ -10,6 +10,7 @@ import edu.umich.eac.AggressivePrefetchStrategy;
 import edu.umich.eac.ConservativePrefetchStrategy;
 
 abstract class PrefetchStrategy {
+    protected WifiTracker wifiTracker;
     public abstract void onPrefetchEnqueued(FetchFuture<?> prefetch);
     public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {}
     public void onDemandFetch(FetchFuture<?> prefetch) {}
@@ -23,7 +24,9 @@ abstract class PrefetchStrategy {
      *        (note: units are currently %-battery.)
      * @param dataGoal Bytes of mobile data spendable before goalTime
      */
-    public void setup(Context context, Date goalTime, int energyGoal, int dataGoal) {}
+    public void setup(Context context, Date goalTime, double energyGoal, int dataGoal) {
+        wifiTracker = new WifiTracker(context);
+    }
     
     /**
      * Update the goal time.  Used to synchronize the user-replay script
@@ -35,7 +38,7 @@ abstract class PrefetchStrategy {
     public static PrefetchStrategy create(Context context,
                                           PrefetchStrategyType type,
                                           Date goalTime,
-                                          int energyGoal,
+                                          double energyGoal,
                                           int dataGoal) {
         PrefetchStrategy strategy = null;
         Class<?> cls = strategies.get(type);

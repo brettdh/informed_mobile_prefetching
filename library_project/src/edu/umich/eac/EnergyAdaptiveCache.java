@@ -108,12 +108,12 @@ public class EnergyAdaptiveCache {
     
     /* Should only call this one if the strategy ignores the params. */
     public EnergyAdaptiveCache(Context context, PrefetchStrategyType strategyType) {
-        this(context, strategyType, System.currentTimeMillis(), 0, 0);
+        this(context, strategyType, System.currentTimeMillis(), 0.0, 0);
     }
     public EnergyAdaptiveCache(Context context,
                                PrefetchStrategyType strategyType,
                                long goalTimeEpochMillis,
-                               int energyBudget,
+                               double energyBudget,
                                int dataBudget) {
         long nowMillis = System.currentTimeMillis();
         if (goalTimeEpochMillis > nowMillis) {
@@ -123,7 +123,7 @@ public class EnergyAdaptiveCache {
         }
         Date goalTime = new Date(goalTimeEpochMillis);
         
-        Log.d(TAG, String.format("Created a new EnergyAdaptiveCache; energyBudget %d%%, dataBudget %d bytes  goalTimeEpochMillis %d  goal %d ms from now",
+        Log.d(TAG, String.format("Created a new EnergyAdaptiveCache; energyBudget %.3f%%, dataBudget %d bytes  goalTimeEpochMillis %d  goal %d ms from now",
                                  energyBudget, dataBudget, goalTimeEpochMillis, relGoalTimeEpochMillis));
         bg_executor = Executors.newFixedThreadPool(NUM_THREADS);
         fg_executor = Executors.newCachedThreadPool();
