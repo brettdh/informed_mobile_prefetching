@@ -271,7 +271,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         logPrint(String.format("Cost = %s; benefit = %s; %s prefetch 0x%08x", 
                                cost.toString(), benefit.toString(),
                                shouldIssuePrefetch ? "issuing" : "deferring",
-                               batch.first().hashCode()));
+                               batch.first().prefetch.hashCode()));
         return shouldIssuePrefetch;
     }
     
