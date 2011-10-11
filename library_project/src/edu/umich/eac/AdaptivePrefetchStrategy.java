@@ -279,6 +279,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
         
+        batch.first().prefetch.clearLabels(IntNWLabels.ALL_NET_PREF_LABELS);
         double energyCostNow = currentEnergyCost(batch);
         double dataCostNow = currentDataCost(batch);
         
@@ -333,18 +334,30 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         int datalen = batch.bytesToTransfer();
         NetworkStats wifiStats = currentNetworkStats.get(ConnectivityManager.TYPE_WIFI);
         NetworkStats mobileStats = currentNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
-        double energyCost = 0.0;
+        double energyCost = 
+            EnergyEstimates.estimateMobileEnergyCost(datalen, 
+                                                     mobileStats.bandwidthDown,
+                                                     mobileStats.rttMillis);
         if (wifiTracker.isWifiAvailable() && wifiStats != null) {
             // TODO: should try sending on wifi even if I don't have the stats yet.
             // But: in my experiments, I should have the stats.
-            energyCost = EnergyEstimates.estimateWifiEnergyCost(datalen, 
-                                                                wifiStats.bandwidthDown,
-                                                                wifiStats.rttMillis);
-        } else {
-            energyCost = EnergyEstimates.estimateMobileEnergyCost(datalen, 
-                                                                  mobileStats.bandwidthDown,
-                                                                  mobileStats.rttMillis);
-        }
+            double wifiEnergyCost =
+                EnergyEstimates.estimateWifiEnergyCost(datalen, 
+                                                       wifiStats.bandwidthDown,
+                                                       wifiStats.rttMillis);
+            if (wifiEnergyCost < energyCost) {
+                batch.first().prefetch.addLabels(IntNWLabels.PREFER_WIFI);
+                energyCost = wifiEnergyCost;
+            } else {
+                batch.first().prefetch.addLabels(IntNWLabels.PREFER_THREEG);
+            }
+        } 
+        // if only 3G is available, don't set a preference label.
+        //  if wifi comes back later, it will probably reduce the total cost
+        //  when used for striping.  Also, if I decided to issue a preferch
+        //  when only 3G was available, I either have quite plentiful resources
+        //  or I'm piggybacking on a previous transfer that ramped up the power state.
+        
         return energyCost / 1000.0; // mJ to J
     }
     
@@ -434,8 +447,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             Log.e(TAG, "WARNING: pending queue refused prefetch.  Shouldn't happen.");
         }
 
-        prefetch.addLabels(IntNWLabels.MIN_ENERGY);
-        prefetch.addLabels(IntNWLabels.MIN_COST);
         try {
             prefetch.startAsync(false);
         } catch (CancellationException e) {

@@ -57,6 +57,10 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         fetcher.labels |= labels;
     }
     
+    public void clearLabels(int labels) {
+        fetcher.labels &= (~labels);
+    }
+
     public int bytesToTransfer() {
         return fetcher.labeledFetcher.bytesToTransfer();
     }

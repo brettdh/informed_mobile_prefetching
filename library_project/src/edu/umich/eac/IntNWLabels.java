@@ -7,6 +7,9 @@ public class IntNWLabels {
     public static final int SMALL = 0x10;
     public static final int LARGE = 0x20;
     
-    public static final int MIN_ENERGY = 0x40;
-    public static final int MIN_COST = 0x80;
+    private static final int NET_PREF_SHIFT = 16;
+    
+    public static final int PREFER_WIFI = 1 << NET_PREF_SHIFT;
+    public static final int PREFER_THREEG = 2 << NET_PREF_SHIFT;
+    public static final int ALL_NET_PREF_LABELS = PREFER_WIFI | PREFER_THREEG;
 }
