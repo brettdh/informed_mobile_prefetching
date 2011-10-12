@@ -264,24 +264,54 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private boolean shouldIssuePrefetch(PrefetchBatch batch) {
         updateNetworkStats();
 
-        /* TODO: add an argument to calculateCost (wifi or 3G).
-         *       then, calculate both costs separately.
-         *       if wifiCost < benefit and threegCost > benefit,
-         *       issue prefetch as wifi-preferred.
-         *       if wifiCost > benefit and threegCost < benefit (less likely),
-         *       issue prefetch as 3G-preferred.
-         *       if wifiCost < benefit and threegCost < benefit, 
-         *       this is the uncertain point.  Could either issue it with no preference 
-         *       or with a preference based on which cost is lower.
-         *       If we issue it with no preference, we should really be calculating the cost
-         *       of doing the prefetch on both networks - but it's probably smaller than
-         *       the cost of doing it on 3G.
-         *       Jason's advice: pick one, document it, and make it easy to change.
-         *         (i.e. toggling one line of code)
-         *       This is the place to do that.
+        /* if wifiCost < benefit and threegCost > benefit,
+         *   issue prefetch as wifi-preferred.
+         * if wifiCost > benefit and threegCost < benefit (less likely),
+         *   issue prefetch as 3G-preferred.
+         * if wifiCost < benefit and threegCost < benefit, 
+         *   this is the uncertain point.  Could either issue it with no preference 
+         *   or with a preference based on which cost is lower.
+         * If we issue it with no preference, we should really be calculating the cost
+         *   of doing the prefetch on both networks - but it's probably smaller than
+         *   the cost of doing it on 3G.
+         * Jason's advice: pick one, document it, and make it easy to change.
+         *   (i.e. toggling one line of code)
+         *   This is the place to do that.
          */
-        Double cost = calculateCost(batch);
+        Double cost = null;
+        
+        Double threegCost = calculateCost(batch, ConnectivityManager.TYPE_MOBILE);
         Double benefit = calculateBenefit(batch);
+
+        if (wifiTracker.isWifiAvailable()) {
+            Double wifiCost = calculateCost(batch, ConnectivityManager.TYPE_WIFI);
+
+            // here's a conservative should-I-stripe-it calculation,
+            //  if we want to try that later
+            /*
+            if ((wifiCost + threegCost) < benefit) {
+                cost = wifiCost = threegCost;
+                // no label preference; default to striping
+            } else
+            */
+            if (wifiCost < benefit && threegCost < benefit) {
+                batch.first().prefetch.addLabels(IntNWLabels.PREFER_WIFI);
+                cost = wifiCost;
+            } else if (wifiCost < benefit && threegCost > benefit) {
+                batch.first().prefetch.addLabels(IntNWLabels.PREFER_WIFI);
+                cost = wifiCost;
+            } else if (wifiCost > benefit && threegCost < benefit) {
+                batch.first().prefetch.addLabels(IntNWLabels.PREFER_THREEG);
+                cost = threegCost;
+            } else {
+                // cost is too high; will defer either way
+                cost = wifiCost;
+            }
+        } else {
+            cost = threegCost;
+            // don't set a preference, so as to allow use of wifi if it appears
+        }
+        
         final boolean shouldIssuePrefetch = cost < benefit;
         
         logPrint(String.format("Cost = %s; benefit = %s; %s prefetch 0x%08x", 
@@ -291,13 +321,13 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return shouldIssuePrefetch;
     }
     
-    private double calculateCost(PrefetchBatch batch) {
+    private double calculateCost(PrefetchBatch batch, int netType) {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
         
         batch.first().prefetch.clearLabels(IntNWLabels.ALL_NET_PREF_LABELS);
-        double energyCostNow = currentEnergyCost(batch);
-        double dataCostNow = currentDataCost(batch);
+        double energyCostNow = currentEnergyCost(batch, netType);
+        double dataCostNow = currentDataCost(batch, netType);
         
         double energyCostFuture = averageEnergyCost(batch);
         double dataCostFuture = averageDataCost(batch);
@@ -327,9 +357,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                                String.valueOf(weightedCost)));
     }
 
-    private static final String ADAPTATION_NOT_IMPL_MSG =
-       "Fixed adaptive params not set and auto-adaptation not yet implemented";
-
     private double calculateEnergyWeight() {
         if (fixedAdaptiveParamsEnabled) {
             return fixedEnergyWeight;
@@ -346,33 +373,27 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
     
-    private double currentEnergyCost(PrefetchBatch batch) {
+    private double currentEnergyCost(PrefetchBatch batch, int netType) {
         int datalen = batch.bytesToTransfer();
-        NetworkStats wifiStats = currentNetworkStats.get(ConnectivityManager.TYPE_WIFI);
-        NetworkStats mobileStats = currentNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
-        double energyCost = 
-            EnergyEstimates.estimateMobileEnergyCost(datalen, 
-                                                     mobileStats.bandwidthDown,
-                                                     mobileStats.rttMillis);
-        if (wifiTracker.isWifiAvailable() && wifiStats != null) {
-            // TODO: should try sending on wifi even if I don't have the stats yet.
-            // But: in my experiments, I should have the stats.
-            double wifiEnergyCost =
+        double energyCost;
+        if (netType == ConnectivityManager.TYPE_MOBILE) {
+            NetworkStats mobileStats = currentNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
+            energyCost = 
+                EnergyEstimates.estimateMobileEnergyCost(datalen, 
+                                                         mobileStats.bandwidthDown,
+                                                         mobileStats.rttMillis);
+        } else {
+            NetworkStats wifiStats = currentNetworkStats.get(ConnectivityManager.TYPE_WIFI);
+            if (wifiStats == null) {
+                // TODO: should try sending on wifi even if I don't have the stats yet.
+                // But: in my experiments, I should have the stats.
+                return Double.MAX_VALUE;
+            }
+            energyCost =
                 EnergyEstimates.estimateWifiEnergyCost(datalen, 
                                                        wifiStats.bandwidthDown,
                                                        wifiStats.rttMillis);
-            if (wifiEnergyCost < energyCost) {
-                batch.first().prefetch.addLabels(IntNWLabels.PREFER_WIFI);
-                energyCost = wifiEnergyCost;
-            } else {
-                batch.first().prefetch.addLabels(IntNWLabels.PREFER_THREEG);
-            }
         } 
-        // if only 3G is available, don't set a preference label.
-        //  if wifi comes back later, it will probably reduce the total cost
-        //  when used for striping.  Also, if I decided to issue a preferch
-        //  when only 3G was available, I either have quite plentiful resources
-        //  or I'm piggybacking on a previous transfer that ramped up the power state.
         
         return energyCost / 1000.0; // mJ to J
     }
@@ -398,12 +419,11 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return expectedValue(wifiEnergyCost, mobileEnergyCost, wifiAvailability) / 1000.0;
     }
 
-    private double currentDataCost(PrefetchBatch batch) {
-        if (!wifiTracker.isWifiAvailable()) {
-            return batch.bytesToTransfer();
-        } else {
-            batch.first().prefetch.addLabels(IntNWLabels.PREFER_WIFI);
+    private double currentDataCost(PrefetchBatch batch, int netType) {
+        if (netType == ConnectivityManager.TYPE_WIFI) {
             return 0;
+        } else {
+            return batch.bytesToTransfer();
         }
     }
     
