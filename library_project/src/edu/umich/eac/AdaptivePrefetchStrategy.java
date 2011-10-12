@@ -264,6 +264,22 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private boolean shouldIssuePrefetch(PrefetchBatch batch) {
         updateNetworkStats();
 
+        /* TODO: add an argument to calculateCost (wifi or 3G).
+         *       then, calculate both costs separately.
+         *       if wifiCost < benefit and threegCost > benefit,
+         *       issue prefetch as wifi-preferred.
+         *       if wifiCost > benefit and threegCost < benefit (less likely),
+         *       issue prefetch as 3G-preferred.
+         *       if wifiCost < benefit and threegCost < benefit, 
+         *       this is the uncertain point.  Could either issue it with no preference 
+         *       or with a preference based on which cost is lower.
+         *       If we issue it with no preference, we should really be calculating the cost
+         *       of doing the prefetch on both networks - but it's probably smaller than
+         *       the cost of doing it on 3G.
+         *       Jason's advice: pick one, document it, and make it easy to change.
+         *         (i.e. toggling one line of code)
+         *       This is the place to do that.
+         */
         Double cost = calculateCost(batch);
         Double benefit = calculateBenefit(batch);
         final boolean shouldIssuePrefetch = cost < benefit;
@@ -386,6 +402,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         if (!wifiTracker.isWifiAvailable()) {
             return batch.bytesToTransfer();
         } else {
+            batch.first().prefetch.addLabels(IntNWLabels.PREFER_WIFI);
             return 0;
         }
     }
