@@ -1,5 +1,6 @@
 package edu.umich.eac;
 
+import java.net.SocketException;
 import java.util.Arrays;
 import java.util.Date;
 
@@ -7,13 +8,18 @@ import edu.umich.eac.WifiTracker.Prediction;
 
 import android.content.Context;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.test.InstrumentationTestCase;
+import android.util.Log;
 
 public class WifiTrackerTest extends InstrumentationTestCase {
+    private static final String TAG = WifiTrackerTest.class.getName();
     WifiTracker predictor;
+    private Context context;
     protected void setUp() throws InterruptedException {
-        predictor = new WifiTracker(getInstrumentation().getContext());
+        context = getInstrumentation().getContext();
+        predictor = new WifiTracker(context);
     }
     
     private void printPrediction(Prediction pred) {
@@ -41,7 +47,6 @@ public class WifiTrackerTest extends InstrumentationTestCase {
     }
     
     public void testAvailabilityTracking() throws InterruptedException {
-        Context context = getInstrumentation().getContext();
         WifiManager wifi = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
         assertTrue(wifi.isWifiEnabled());
         assertTrue(wifi.getConnectionInfo().getSupplicantState() == SupplicantState.COMPLETED);
@@ -69,5 +74,32 @@ public class WifiTrackerTest extends InstrumentationTestCase {
             Thread.sleep(1000);
         }
         fail("Should have seen > 50% wifi availability");
+    }
+    
+    public void testAskScoutIfNetworkIsAvailable() throws SocketException, InterruptedException {
+        WifiTracker tracker = new WifiTracker(context);
+        int usableCount = 0, total = 50;
+        for (int i = 0; i < total; ++i) {
+            boolean usable = tracker.isWifiUsable();
+            if (usable) {
+                usableCount++;
+            }
+            Log.d(TAG, String.format("Wifi is %s usable", 
+                                     usable ? "" : "not"));
+            Thread.sleep(1000);
+            if (i == (total / 2)) {
+                turnWifiOff();
+            }
+        }
+        Log.d(TAG, String.format("isUsable returned true %d out of %d times", usableCount, total));
+    }
+    
+    private void turnWifiOff() {
+        WifiManager wifi = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
+        WifiInfo info = wifi.getConnectionInfo();
+        int netId = info.getNetworkId();
+        if (netId != -1) {
+            wifi.disableNetwork(netId);
+        }
     }
 }

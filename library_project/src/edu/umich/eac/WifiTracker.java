@@ -17,6 +17,7 @@ import android.net.ConnectivityManager;
 import android.net.DhcpInfo;
 import android.net.NetworkInfo;
 import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.util.Log;
@@ -190,7 +191,7 @@ public class WifiTracker extends BroadcastReceiver {
         }
     }
     
-    public synchronized boolean isAvailableNow() {
+    public synchronized boolean isWifiUsable() {
         WifiManager wifi = 
             (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
         WifiInfo wifiInfo = wifi.getConnectionInfo();

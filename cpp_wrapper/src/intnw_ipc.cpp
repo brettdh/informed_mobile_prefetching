@@ -201,7 +201,7 @@ Java_edu_umich_eac_NetworkStats_getAllNetworkStatsByIp(JNIEnv *jenv, jclass cls)
 }
 
 extern "C"
-JNIEXPORT jobject JNICALL 
+JNIEXPORT jboolean JNICALL 
 Java_edu_umich_eac_WifiTracker_askScoutIfIpIsConnected(JNIEnv *jenv, jobject jobj, jint ipAddr)
 {
     return is_ip_connected(ipAddr);
