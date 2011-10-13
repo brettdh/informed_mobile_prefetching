@@ -102,4 +102,8 @@ public class WifiTrackerTest extends InstrumentationTestCase {
             wifi.disableNetwork(netId);
         }
     }
+    
+    static {
+        System.loadLibrary("eac_native_tests");
+    }
 }
