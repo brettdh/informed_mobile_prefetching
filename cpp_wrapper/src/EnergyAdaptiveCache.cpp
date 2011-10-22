@@ -85,7 +85,8 @@ static void lib_init(void)
 static const char *enumNames[NUM_STRATEGIES] = {
     "AGGRESSIVE",
     "CONSERVATIVE",
-    "ADAPTIVE"
+    "ADAPTIVE",
+    "SIZE_LIMIT"
 };
 
 enum PrefetchStrategyType

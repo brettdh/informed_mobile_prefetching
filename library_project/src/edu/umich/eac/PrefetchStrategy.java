@@ -64,5 +64,7 @@ abstract class PrefetchStrategy {
                        ConservativePrefetchStrategy.class);
         strategies.put(PrefetchStrategyType.ADAPTIVE,
                        AdaptivePrefetchStrategy.class);
+        strategies.put(PrefetchStrategyType.SIZE_LIMIT,
+                       SizeLimitPrefetchStrategy.class);
     }
 }

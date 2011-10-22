@@ -5,6 +5,7 @@ public enum PrefetchStrategyType {
     CONSERVATIVE,
     /* ... */
     ADAPTIVE, // this is ours
+    SIZE_LIMIT,
     /* ... */
     NUM_STRATEGIES
 }

@@ -12,6 +12,7 @@ enum PrefetchStrategyType {
     AGGRESSIVE,
     CONSERVATIVE,
     ADAPTIVE,
+    SIZE_LIMIT,
     // ...
     NUM_STRATEGIES
 };
