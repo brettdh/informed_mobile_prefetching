@@ -198,9 +198,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             if (prefetchesInProgress.remainingCapacity() == 0) {
                 PrefetchTask firstFetch = prefetchesInProgress.peek();
                 if (cannotComplete(firstFetch)) {
+                    logPrint(String.format("Prefetch 0x%08x was interrupted; re-deferring",
+                                           firstFetch.hashCode()));
                     prefetchesInProgress.remove(firstFetch);
                     firstFetch.reset();
                     deferDecision(firstFetch);
+                    return;
                 }
                 
                 // too many prefetches in progress; defer
