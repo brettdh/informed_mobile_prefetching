@@ -23,6 +23,7 @@ import org.apache.commons.math.optimization.GoalType;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.util.Log;
+import edu.umich.eac.AdaptivePrefetchStrategy.PrefetchTask;
 import edu.umich.eac.WifiTracker.ConditionChange;
 import edu.umich.eac.WifiTracker.Prediction;
 import edu.umich.libpowertutor.EnergyEstimates;
@@ -195,21 +196,21 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
 
         private void reevaluateAllDeferredPrefetches() throws InterruptedException {
+            PrefetchTask firstFetch = prefetchesInProgress.peek();
+            if (firstFetch != null && cannotComplete(firstFetch)) {
+                logPrint(String.format("Prefetch 0x%08x was interrupted; re-deferring",
+                                       firstFetch.prefetch.hashCode()));
+                prefetchesInProgress.remove(firstFetch);
+                firstFetch.reset();
+                deferDecision(firstFetch);
+                return;
+            }
+            
             if (prefetchesInProgress.remainingCapacity() == 0) {
-                PrefetchTask firstFetch = prefetchesInProgress.peek();
-                if (cannotComplete(firstFetch)) {
-                    logPrint(String.format("Prefetch 0x%08x was interrupted; re-deferring",
-                                           firstFetch.prefetch.hashCode()));
-                    prefetchesInProgress.remove(firstFetch);
-                    firstFetch.reset();
-                    deferDecision(firstFetch);
-                    return;
-                }
-                
                 // too many prefetches in progress; defer
                 logPrint(String.format("%d prefetches outstanding (first is 0x%08x); deferring", 
                         prefetchesInProgress.size(), 
-                        prefetchesInProgress.peek().prefetch.hashCode()));
+                        firstFetch == null ? 0 : firstFetch.prefetch.hashCode()));
                 return;
             }
 
@@ -252,9 +253,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             return false;
         }
 
-        void removeTask(PrefetchTask dummy) {
-            tasksToEvaluate.remove(dummy);
-            deferredPrefetches.remove(dummy);
+        void removeTask(FetchFuture<?> prefetch) {
+            removePrefetchFromList(tasksToEvaluate, prefetch);
+            removePrefetchFromList(deferredPrefetches, prefetch);
         }
     }
 
@@ -264,8 +265,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                                prefetch.hashCode()));
         PrefetchTask dummy = new PrefetchTask(prefetch);
         //prefetchesInProgress.remove(dummy);
-        removeCurrentPrefetch(prefetch);
-        monitorThread.removeTask(dummy);
+        removePrefetchFromList(prefetchesInProgress, prefetch);
+        monitorThread.removeTask(prefetch);
     }
     
     @Override
@@ -274,22 +275,22 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                  cancelled ? "cancelled" : "done", prefetch.hashCode()));
         PrefetchTask dummy = new PrefetchTask(prefetch);
         if (cancelled) {
-            monitorThread.removeTask(dummy);
+            monitorThread.removeTask(prefetch);
         }
-        removeCurrentPrefetch(prefetch);
+        removePrefetchFromList(prefetchesInProgress, prefetch);
         //prefetchesInProgress.remove(dummy);
     }
     
-    private void removeCurrentPrefetch(FetchFuture<?> prefetch) {
+    private void removePrefetchFromList(BlockingQueue<PrefetchTask> prefetches, FetchFuture<?> prefetch) {
         PrefetchTask victim = null;
-        for (PrefetchTask task : prefetchesInProgress) {
+        for (PrefetchTask task : prefetches) {
             if (task.prefetch.equals(prefetch)) {
                 victim = task;
                 break;
             }
         }
         if (victim != null) {
-            prefetchesInProgress.remove(victim);
+            prefetches.remove(victim);
         }
     }
 

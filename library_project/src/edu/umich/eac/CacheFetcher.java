@@ -17,4 +17,11 @@ public abstract class CacheFetcher<V> {
         // default implementation; assume downstream transfer dominates
         return ((double) bytesToTransfer()) / ((double) worstBandwidthDown);
     }
+
+    /**
+     * Override onCancelled to specify app-specific cancellation handing,
+     *  if Java-level task interruption isn't sufficient to cancel the fetch.
+     *  Example: a JNI-implemented fetcher that calls pthread_cond_wait.
+     */
+    public void onCancelled() {}
 }

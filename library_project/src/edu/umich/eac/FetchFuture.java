@@ -96,6 +96,9 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         cache.stats.onFetchCancelled(this);
         cache.strategy.onPrefetchDone(this, true);
         
+        // app-implemented cancellation callback
+        fetcher.labeledFetcher.onCancelled();
+        
         Future<V> f = getFutureRef();
         if (f == null) {
             cancelled = true;
@@ -206,6 +209,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         if (realFuture != null) {
             realFuture.cancel(true);
         }
+        fetcher.labeledFetcher.onCancelled();
         realFuture = null;
     }
 }
