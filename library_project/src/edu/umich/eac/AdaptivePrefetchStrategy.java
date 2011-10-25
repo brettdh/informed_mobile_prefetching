@@ -199,7 +199,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                 PrefetchTask firstFetch = prefetchesInProgress.peek();
                 if (cannotComplete(firstFetch)) {
                     logPrint(String.format("Prefetch 0x%08x was interrupted; re-deferring",
-                                           firstFetch.hashCode()));
+                                           firstFetch.prefetch.hashCode()));
                     prefetchesInProgress.remove(firstFetch);
                     firstFetch.reset();
                     deferDecision(firstFetch);
@@ -209,7 +209,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                 // too many prefetches in progress; defer
                 logPrint(String.format("%d prefetches outstanding (first is 0x%08x); deferring", 
                         prefetchesInProgress.size(), 
-                        prefetchesInProgress.peek().hashCode()));
+                        prefetchesInProgress.peek().prefetch.hashCode()));
                 return;
             }
 
@@ -252,8 +252,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             return false;
         }
 
-        void removeTask(FetchFuture<?> prefetch) {
-            PrefetchTask dummy = new PrefetchTask(prefetch);
+        void removeTask(PrefetchTask dummy) {
             tasksToEvaluate.remove(dummy);
             deferredPrefetches.remove(dummy);
         }
@@ -261,18 +260,39 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
 
     @Override
     public void onDemandFetch(FetchFuture<?> prefetch) {
-        prefetchesInProgress.remove(prefetch);
-        monitorThread.removeTask(prefetch);
+        logPrint(String.format("Demand fetch arrived for fetcher 0x%08x; removing its prefetch",
+                               prefetch.hashCode()));
+        PrefetchTask dummy = new PrefetchTask(prefetch);
+        //prefetchesInProgress.remove(dummy);
+        removeCurrentPrefetch(prefetch);
+        monitorThread.removeTask(dummy);
     }
     
     @Override
     public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {
+        logPrint(String.format("Prefetch %s for fetcher 0x%08x",
+                 cancelled ? "cancelled" : "done", prefetch.hashCode()));
+        PrefetchTask dummy = new PrefetchTask(prefetch);
         if (cancelled) {
-            monitorThread.removeTask(prefetch);
+            monitorThread.removeTask(dummy);
         }
-        prefetchesInProgress.remove(prefetch);
+        removeCurrentPrefetch(prefetch);
+        //prefetchesInProgress.remove(dummy);
     }
     
+    private void removeCurrentPrefetch(FetchFuture<?> prefetch) {
+        PrefetchTask victim = null;
+        for (PrefetchTask task : prefetchesInProgress) {
+            if (task.prefetch.equals(prefetch)) {
+                victim = task;
+                break;
+            }
+        }
+        if (victim != null) {
+            prefetchesInProgress.remove(victim);
+        }
+    }
+
     @Override
     public void onPrefetchEnqueued(FetchFuture<?> prefetch) {
         // The prefetch will get evaluated the next time around the loop.
