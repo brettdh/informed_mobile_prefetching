@@ -11,5 +11,5 @@ public class IntNWLabels {
     
     public static final int WIFI_ONLY = 1 << NET_RESTRICTION_SHIFT;
     public static final int THREEG_ONLY = 2 << NET_RESTRICTION_SHIFT;
-    public static final int ALL_NET_PREF_LABELS = WIFI_ONLY | THREEG_ONLY;
+    public static final int ALL_NET_RESTRICTION_LABELS = WIFI_ONLY | THREEG_ONLY;
 }

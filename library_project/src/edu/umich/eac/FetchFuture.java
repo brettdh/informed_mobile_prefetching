@@ -121,14 +121,16 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
                 //      large and almost done.  Hence label promotion.
                 
                 realFuture.cancel(true);
+                fetcher.labeledFetcher.onCancelled();
                 realFuture = null;
             }
             
-            fetcher.labels &= ~IntNWLabels.BACKGROUND;
-            fetcher.labels |= IntNWLabels.ONDEMAND;
+            clearLabels(IntNWLabels.BACKGROUND);
+            addLabels(IntNWLabels.ONDEMAND);
+            clearLabels(IntNWLabels.ALL_NET_RESTRICTION_LABELS);
         } else {
-            fetcher.labels &= ~IntNWLabels.ONDEMAND;
-            fetcher.labels |= IntNWLabels.BACKGROUND;
+            clearLabels(IntNWLabels.ONDEMAND);
+            addLabels(IntNWLabels.BACKGROUND);
         }
         
         if (realFuture == null) {

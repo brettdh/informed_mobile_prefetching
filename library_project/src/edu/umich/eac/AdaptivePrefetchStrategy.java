@@ -326,7 +326,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         Double threegCost = calculateCost(batch, ConnectivityManager.TYPE_MOBILE);
         Double benefit = calculateBenefit(batch);
 
-        if (wifiTracker.isWifiAvailable() && wifiTracker.isWifiUsable()) {
+        if (wifiTracker.isWifiAvailable()) {
             Double wifiCost = calculateCost(batch, ConnectivityManager.TYPE_WIFI);
 
             // here's a conservative should-I-stripe-it calculation,
@@ -368,7 +368,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
         
-        batch.first().prefetch.clearLabels(IntNWLabels.ALL_NET_PREF_LABELS);
+        batch.first().prefetch.clearLabels(IntNWLabels.ALL_NET_RESTRICTION_LABELS);
         double energyCostNow = currentEnergyCost(batch, netType);
         double dataCostNow = currentDataCost(batch, netType);
         

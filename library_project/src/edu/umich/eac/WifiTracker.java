@@ -136,11 +136,15 @@ public class WifiTracker extends BroadcastReceiver {
         return ((double) availableMillis) / ((double) millisSinceCreation);
     }
     
-    public boolean isWifiAvailable() {
+    static final int WIFI_AVAILABLE_FUDGE_FACTOR_MS = 250;
+    
+    public synchronized boolean isWifiAvailable() {
         WifiManager wifi = (WifiManager) context.getSystemService(Context.WIFI_SERVICE);
         return (wifi != null && wifi.isWifiEnabled() &&
                 wifi.getConnectionInfo().getSupplicantState() == SupplicantState.COMPLETED &&
-                wifi.getDhcpInfo() != null);
+                wifi.getDhcpInfo() != null &&
+                wifiAvailable &&
+                (System.currentTimeMillis() - lastEvent.getTime()) > WIFI_AVAILABLE_FUDGE_FACTOR_MS);
     }
     
     @Override
