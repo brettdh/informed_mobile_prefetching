@@ -141,16 +141,16 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         fixedDataWeight = dataWeight;
     }
 
-    private Date lastStatsUpdate = new Date();
+    private Date lastEnergyStatsUpdate = new Date();
     private Context context;
     
     private synchronized void updateStats() {
-        if (System.currentTimeMillis() - lastStatsUpdate.getTime() > 1000) {
+        if (System.currentTimeMillis() - lastEnergyStatsUpdate.getTime() > 1000) {
             updateEnergyStats();
-            updateNetworkStats();
-            updateDataStats();
-            lastStatsUpdate = new Date();
+            lastEnergyStatsUpdate = new Date();
         }
+        updateNetworkStats();
+        updateDataStats();
     }
 
     private synchronized void updateDataStats() {
@@ -182,17 +182,20 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         @Override
         public void run() {
             final int SAMPLE_PERIOD_MS = 200;
-            updateStats();
             
             while (true) {
                 try {
-                    reevaluateAllDeferredPrefetches();
                     updateStats();
-                    Thread.sleep(SAMPLE_PERIOD_MS);
+                    reevaluateAllDeferredPrefetches();
+                    waitForWakeup(SAMPLE_PERIOD_MS);
                 } catch (InterruptedException e) {
                     break;
                 }
             }
+        }
+
+        private synchronized void waitForWakeup(long waitMillis) throws InterruptedException {
+            wait(waitMillis);
         }
 
         private void reevaluateAllDeferredPrefetches() throws InterruptedException {
@@ -257,6 +260,10 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             removePrefetchFromList(tasksToEvaluate, prefetch);
             removePrefetchFromList(deferredPrefetches, prefetch);
         }
+
+        synchronized void wakeup() {
+            notify();
+        }
     }
 
     @Override
@@ -267,6 +274,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         //prefetchesInProgress.remove(dummy);
         removePrefetchFromList(prefetchesInProgress, prefetch);
         monitorThread.removeTask(prefetch);
+        monitorThread.wakeup();
     }
     
     @Override
@@ -278,6 +286,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             monitorThread.removeTask(prefetch);
         }
         removePrefetchFromList(prefetchesInProgress, prefetch);
+        monitorThread.wakeup();
         //prefetchesInProgress.remove(dummy);
     }
     
@@ -302,6 +311,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         //  otherwise there's a race with
         //  prefetchesInProgress.remainingCapacity()
         deferDecision(new PrefetchTask(prefetch));
+        if (deferredPrefetches.size() == 1) {
+            monitorThread.wakeup();
+        }
     }
 
     private boolean shouldIssuePrefetch(PrefetchBatch batch) {
@@ -326,6 +338,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         Double threegCost = calculateCost(batch, ConnectivityManager.TYPE_MOBILE);
         Double benefit = calculateBenefit(batch);
 
+        batch.first().prefetch.clearLabels(IntNWLabels.ALL_NET_RESTRICTION_LABELS);
         if (wifiTracker.isWifiAvailable()) {
             Double wifiCost = calculateCost(batch, ConnectivityManager.TYPE_WIFI);
 
@@ -368,7 +381,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
         
-        batch.first().prefetch.clearLabels(IntNWLabels.ALL_NET_RESTRICTION_LABELS);
         double energyCostNow = currentEnergyCost(batch, netType);
         double dataCostNow = currentDataCost(batch, netType);
         
