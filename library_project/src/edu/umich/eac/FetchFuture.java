@@ -29,6 +29,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         int labels;
         CacheFetcher<V> labeledFetcher;
         FetchFuture<V> future;
+        private boolean running = false;
         CallableWrapperFetcher(CacheFetcher<V> fetcher_, FetchFuture<V> future_) {
             labeledFetcher = fetcher_;
             future = future_;
@@ -40,12 +41,43 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
 
         public V call() throws Exception {
-            V result = labeledFetcher.call(labels);
-            if (!isDemand()) {
-                cache.stats.onPrefetchDone(future);
-                cache.strategy.onPrefetchDone(future, false);
+            markRunning();
+            
+            V result;
+            try {
+                result = labeledFetcher.call(labels);
+            } catch (Exception e) {
+                // log?
+                throw e;
+            } finally {
+                if (!isDemand()) {
+                    cache.stats.onPrefetchDone(future);
+                    cache.strategy.onPrefetchDone(future, false);
+                }
+                markFinished();
             }
             return result;
+        }
+        
+        private synchronized void markRunning() {
+            running = true;
+        }
+        
+        private synchronized void markFinished() {
+            running = false;
+            notifyAll();
+        }
+
+        synchronized void waitUntilDone() {
+            while (running) {
+                try {
+                    wait();
+                } catch (InterruptedException e) {
+                    // shouldn't happen normally.
+                    e.printStackTrace();
+                    break;
+                }
+            }
         }
     }
     
@@ -98,6 +130,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         
         // app-implemented cancellation callback
         fetcher.labeledFetcher.onCancelled();
+        fetcher.waitUntilDone();
         
         Future<V> f = getFutureRef();
         if (f == null) {
@@ -122,6 +155,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
                 
                 realFuture.cancel(true);
                 fetcher.labeledFetcher.onCancelled();
+                fetcher.waitUntilDone();
                 realFuture = null;
             }
             
@@ -212,6 +246,7 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
             realFuture.cancel(true);
         }
         fetcher.labeledFetcher.onCancelled();
+        fetcher.waitUntilDone();
         realFuture = null;
     }
 }

@@ -22,6 +22,8 @@ public abstract class CacheFetcher<V> {
      * Override onCancelled to specify app-specific cancellation handing,
      *  if Java-level task interruption isn't sufficient to cancel the fetch.
      *  Example: a JNI-implemented fetcher that calls pthread_cond_wait.
+     * IMPORTANT: subclasses of this MUST return from call() immediately
+     *  after being cancelled via interruption or the onCancelled callback.
      */
     public void onCancelled() {}
 }
