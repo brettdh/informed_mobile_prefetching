@@ -60,4 +60,8 @@ public class JNICacheFetcher extends CacheFetcher<SWIGTYPE_p_void> {
                                                       worstBandwidthUp,
                                                       worstRTT);
     }
+  
+  public void onCancelled() {
+      eacJNI.JNICacheFetcher_onCancelled(swigCPtr,  this);
+  }
 }

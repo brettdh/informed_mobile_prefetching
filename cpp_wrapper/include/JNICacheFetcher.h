@@ -8,6 +8,7 @@ public:
     virtual double estimateFetchTime(int worstBandwidthDown,
                                      int worstBandwidthUp,
                                      int worstRTT) = 0;
+    virtual void onCancelled() {}
     virtual ~JNICacheFetcher() {}
 };
 

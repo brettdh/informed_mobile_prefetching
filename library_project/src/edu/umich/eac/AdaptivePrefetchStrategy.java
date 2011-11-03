@@ -23,6 +23,7 @@ import org.apache.commons.math.optimization.GoalType;
 import android.content.Context;
 import android.net.ConnectivityManager;
 import android.util.Log;
+import edu.umich.eac.AdaptivePrefetchStrategy.PrefetchTask;
 import edu.umich.eac.WifiTracker.ConditionChange;
 import edu.umich.eac.WifiTracker.Prediction;
 import edu.umich.libpowertutor.EnergyEstimates;
@@ -67,14 +68,18 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             }
             return order - another.order;
         }
+
+        public void reset() {
+            prefetch.reset();
+        }
     }
 
     private PriorityBlockingQueue<PrefetchTask> deferredPrefetches = 
         new PriorityBlockingQueue<PrefetchTask>();
     
     private static final int NUM_CONCURRENT_PREFETCHES = 1;
-    private BlockingQueue<FetchFuture<?> > prefetchesInProgress = 
-        new ArrayBlockingQueue<FetchFuture<?> >(NUM_CONCURRENT_PREFETCHES);
+    private BlockingQueue<PrefetchTask> prefetchesInProgress = 
+        new ArrayBlockingQueue<PrefetchTask>(NUM_CONCURRENT_PREFETCHES);
     
     private static boolean fixedAdaptiveParamsEnabled = false;
     private static double fixedEnergyWeight;
@@ -136,16 +141,16 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         fixedDataWeight = dataWeight;
     }
 
-    private Date lastStatsUpdate = new Date();
+    private Date lastEnergyStatsUpdate = new Date();
     private Context context;
     
     private synchronized void updateStats() {
-        if (System.currentTimeMillis() - lastStatsUpdate.getTime() > 1000) {
+        if (System.currentTimeMillis() - lastEnergyStatsUpdate.getTime() > 1000) {
             updateEnergyStats();
-            updateNetworkStats();
-            updateDataStats();
-            lastStatsUpdate = new Date();
+            lastEnergyStatsUpdate = new Date();
         }
+        updateNetworkStats();
+        updateDataStats();
     }
 
     private synchronized void updateDataStats() {
@@ -177,25 +182,38 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         @Override
         public void run() {
             final int SAMPLE_PERIOD_MS = 200;
-            updateStats();
             
             while (true) {
                 try {
-                    reevaluateAllDeferredPrefetches();
                     updateStats();
-                    Thread.sleep(SAMPLE_PERIOD_MS);
+                    reevaluateAllDeferredPrefetches();
+                    waitForWakeup(SAMPLE_PERIOD_MS);
                 } catch (InterruptedException e) {
                     break;
                 }
             }
         }
 
+        private synchronized void waitForWakeup(long waitMillis) throws InterruptedException {
+            wait(waitMillis);
+        }
+
         private void reevaluateAllDeferredPrefetches() throws InterruptedException {
+            PrefetchTask firstFetch = prefetchesInProgress.peek();
+            if (firstFetch != null && cannotComplete(firstFetch)) {
+                logPrint(String.format("Prefetch 0x%08x was interrupted; re-deferring",
+                                       firstFetch.prefetch.hashCode()));
+                prefetchesInProgress.remove(firstFetch);
+                firstFetch.reset();
+                deferDecision(firstFetch);
+                return;
+            }
+            
             if (prefetchesInProgress.remainingCapacity() == 0) {
                 // too many prefetches in progress; defer
                 logPrint(String.format("%d prefetches outstanding (first is 0x%08x); deferring", 
                         prefetchesInProgress.size(), 
-                        prefetchesInProgress.peek().hashCode()));
+                        firstFetch == null ? 0 : firstFetch.prefetch.hashCode()));
                 return;
             }
 
@@ -218,7 +236,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                     logPrint(String.format("Evaluating prefetch 0x%08x", batch.first().prefetch.hashCode()));
                 }
                 if (shouldIssuePrefetch(batch)) {
-                    issuePrefetch(batch.first().prefetch);
+                    issuePrefetch(batch.first());
                     batch.pop();
                     break;
                 }
@@ -230,27 +248,61 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             tasksToEvaluate.drainTo(deferredPrefetches);
         }
         
+        private boolean cannotComplete(PrefetchTask firstFetch) {
+            if (firstFetch.prefetch.hasLabels(IntNWLabels.WIFI_ONLY) &&
+                !wifiTracker.isWifiAvailable()) {
+                return true;
+            } // else: should handle the 3G-only case too, but it's unlikely
+            return false;
+        }
+
         void removeTask(FetchFuture<?> prefetch) {
-            PrefetchTask dummy = new PrefetchTask(prefetch);
-            tasksToEvaluate.remove(dummy);
-            deferredPrefetches.remove(dummy);
+            removePrefetchFromList(tasksToEvaluate, prefetch);
+            removePrefetchFromList(deferredPrefetches, prefetch);
+        }
+
+        synchronized void wakeup() {
+            notify();
         }
     }
 
     @Override
     public void onDemandFetch(FetchFuture<?> prefetch) {
-        prefetchesInProgress.remove(prefetch);
+        logPrint(String.format("Demand fetch arrived for fetcher 0x%08x; removing its prefetch",
+                               prefetch.hashCode()));
+        PrefetchTask dummy = new PrefetchTask(prefetch);
+        //prefetchesInProgress.remove(dummy);
+        removePrefetchFromList(prefetchesInProgress, prefetch);
         monitorThread.removeTask(prefetch);
+        monitorThread.wakeup();
     }
     
     @Override
     public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {
+        logPrint(String.format("Prefetch %s for fetcher 0x%08x",
+                 cancelled ? "cancelled" : "done", prefetch.hashCode()));
+        PrefetchTask dummy = new PrefetchTask(prefetch);
         if (cancelled) {
             monitorThread.removeTask(prefetch);
         }
-        prefetchesInProgress.remove(prefetch);
+        removePrefetchFromList(prefetchesInProgress, prefetch);
+        monitorThread.wakeup();
+        //prefetchesInProgress.remove(dummy);
     }
     
+    private void removePrefetchFromList(BlockingQueue<PrefetchTask> prefetches, FetchFuture<?> prefetch) {
+        PrefetchTask victim = null;
+        for (PrefetchTask task : prefetches) {
+            if (task.prefetch.equals(prefetch)) {
+                victim = task;
+                break;
+            }
+        }
+        if (victim != null) {
+            prefetches.remove(victim);
+        }
+    }
+
     @Override
     public void onPrefetchEnqueued(FetchFuture<?> prefetch) {
         // The prefetch will get evaluated the next time around the loop.
@@ -259,6 +311,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         //  otherwise there's a race with
         //  prefetchesInProgress.remainingCapacity()
         deferDecision(new PrefetchTask(prefetch));
+        if (deferredPrefetches.size() == 1) {
+            monitorThread.wakeup();
+        }
     }
 
     private boolean shouldIssuePrefetch(PrefetchBatch batch) {
@@ -283,7 +338,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         Double threegCost = calculateCost(batch, ConnectivityManager.TYPE_MOBILE);
         Double benefit = calculateBenefit(batch);
 
-        if (wifiTracker.isWifiAvailable() && wifiTracker.isWifiUsable()) {
+        batch.first().prefetch.clearLabels(IntNWLabels.ALL_NET_RESTRICTION_LABELS);
+        if (wifiTracker.isWifiAvailable()) {
             Double wifiCost = calculateCost(batch, ConnectivityManager.TYPE_WIFI);
 
             // here's a conservative should-I-stripe-it calculation,
@@ -295,13 +351,13 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             } else
             */
             if (wifiCost < benefit && threegCost < benefit) {
-                batch.first().prefetch.addLabels(IntNWLabels.PREFER_WIFI);
+                batch.first().prefetch.addLabels(IntNWLabels.WIFI_ONLY);
                 cost = wifiCost;
             } else if (wifiCost < benefit && threegCost > benefit) {
-                batch.first().prefetch.addLabels(IntNWLabels.PREFER_WIFI);
+                batch.first().prefetch.addLabels(IntNWLabels.WIFI_ONLY);
                 cost = wifiCost;
             } else if (wifiCost > benefit && threegCost < benefit) {
-                batch.first().prefetch.addLabels(IntNWLabels.PREFER_THREEG);
+                batch.first().prefetch.addLabels(IntNWLabels.THREEG_ONLY);
                 cost = threegCost;
             } else {
                 // cost is too high; will defer either way
@@ -325,7 +381,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
         
-        batch.first().prefetch.clearLabels(IntNWLabels.ALL_NET_PREF_LABELS);
         double energyCostNow = currentEnergyCost(batch, netType);
         double dataCostNow = currentDataCost(batch, netType);
         
@@ -472,12 +527,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return probability * valueIfTrue + (1 - probability) * valueIfFalse;
     }
 
-    private void issuePrefetch(FetchFuture<?> prefetch) {
-        if (alreadyIssued(prefetch)) {
+    private void issuePrefetch(PrefetchTask task) {
+        if (alreadyIssued(task)) {
             return;
         }
         
-        if (!prefetchesInProgress.offer(prefetch)) {
+        if (!prefetchesInProgress.offer(task)) {
             // shouldn't happen, because only one thread calls this,
             //  and it always checks prefetchesInProgress.remainingCapacity() > 0 
             //  before doing so.
@@ -485,13 +540,15 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
 
         try {
-            prefetch.startAsync(false);
+            task.prefetch.startAsync(false);
         } catch (CancellationException e) {
             Log.e(TAG, "Prefetch cancelled; discarding");
         }
     }
 
-    private boolean alreadyIssued(FetchFuture<?> prefetch) {
+    private boolean alreadyIssued(PrefetchTask task) {
+        FetchFuture<?> prefetch = task.prefetch;
+        
         // don't issue a prefetch if some fetch for this data
         //  was already issued; it'll only hang up future prefetches
         boolean issued = prefetch.wasIssued() || prefetch.isCancelled();
@@ -503,7 +560,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private void deferDecision(PrefetchTask task) {
-        if (!alreadyIssued(task.prefetch)) {
+        if (!alreadyIssued(task)) {
             deferredPrefetches.add(task);
         }
     }

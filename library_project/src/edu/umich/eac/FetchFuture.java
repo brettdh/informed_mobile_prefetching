@@ -61,6 +61,10 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         fetcher.labels &= (~labels);
     }
 
+    public boolean hasLabels(int labels) {
+        return ((fetcher.labels & labels) != 0);
+    }
+
     public int bytesToTransfer() {
         return fetcher.labeledFetcher.bytesToTransfer();
     }
@@ -92,6 +96,9 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         cache.stats.onFetchCancelled(this);
         cache.strategy.onPrefetchDone(this, true);
         
+        // app-implemented cancellation callback
+        fetcher.labeledFetcher.onCancelled();
+        
         Future<V> f = getFutureRef();
         if (f == null) {
             cancelled = true;
@@ -114,14 +121,16 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
                 //      large and almost done.  Hence label promotion.
                 
                 realFuture.cancel(true);
+                fetcher.labeledFetcher.onCancelled();
                 realFuture = null;
             }
             
-            fetcher.labels &= ~IntNWLabels.BACKGROUND;
-            fetcher.labels |= IntNWLabels.ONDEMAND;
+            clearLabels(IntNWLabels.BACKGROUND);
+            addLabels(IntNWLabels.ONDEMAND);
+            clearLabels(IntNWLabels.ALL_NET_RESTRICTION_LABELS);
         } else {
-            fetcher.labels &= ~IntNWLabels.ONDEMAND;
-            fetcher.labels |= IntNWLabels.BACKGROUND;
+            clearLabels(IntNWLabels.ONDEMAND);
+            addLabels(IntNWLabels.BACKGROUND);
         }
         
         if (realFuture == null) {
@@ -191,5 +200,18 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         } finally {
             super.finalize();
         }
+    }
+
+    /**
+     * Cancel the real future, but don't cancel the prefetch.
+     * This is used to interrupt a prefetch that was started but can't finish
+     * due to its required network type going away.
+     */
+    synchronized void reset() {
+        if (realFuture != null) {
+            realFuture.cancel(true);
+        }
+        fetcher.labeledFetcher.onCancelled();
+        realFuture = null;
     }
 }

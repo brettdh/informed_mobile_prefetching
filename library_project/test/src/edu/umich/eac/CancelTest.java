@@ -60,7 +60,6 @@ public class CancelTest extends InstrumentationTestCase {
         public String call(int labels) throws InterruptedException {
             // Never return; just wait to be cancelled.
             while (true) {
-                Thread.currentThread();
                 Thread.sleep(3600 * 1000);
             }
         }

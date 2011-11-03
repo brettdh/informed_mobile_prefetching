@@ -299,6 +299,21 @@ SWIGEXPORT void JNICALL Java_edu_umich_eac_eacJNI_delete_1JNICacheFetcher(JNIEnv
   (void)arg1; delete smartarg1;
 }
 
+SWIGEXPORT void JNICALL Java_edu_umich_eac_eacJNI_JNICacheFetcher_1onCancelled(JNIEnv *jenv, jclass jcls, jint jarg1, jobject jarg1_) {
+  JNICacheFetcher *arg1 = (JNICacheFetcher *) 0 ;
+  boost::shared_ptr< JNICacheFetcher > *smartarg1 = 0 ;
+  
+  if (!jenv) { return; } // BDH: for static linker coercion only.
+
+  (void)jenv;
+  (void)jcls;
+  (void)jarg1_;
+  
+  smartarg1 = *(boost::shared_ptr<  JNICacheFetcher > **)&jarg1;
+  arg1 = (JNICacheFetcher *)(smartarg1 ? smartarg1->get() : 0); 
+  (arg1)->onCancelled();
+}
+
 
 #ifdef __cplusplus
 }
