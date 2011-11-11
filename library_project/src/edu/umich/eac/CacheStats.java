@@ -16,8 +16,8 @@ class CacheStats {
     private static final String TAG = CacheStats.class.getName();
     
     // promotion delay is in milliseconds
-    private final long promotionDelayInit = 5000;
-    private SummaryStatistics promotionDelay = new SummaryStatistics();
+    //private final long promotionDelayInit = 5000;
+    //private SummaryStatistics promotionDelay = new SummaryStatistics();
     private int numDemandFetches = 0;
     private int numCacheHits = 0;
     private int numHintedPrefetches = 0;
@@ -28,7 +28,7 @@ class CacheStats {
     public CacheStats() {
         // fake value to start so that prefetches aren't 
         //  immediately considered not promoted 
-        promotionDelay.addValue(promotionDelayInit);
+        //promotionDelay.addValue(promotionDelayInit);
     }
     
     synchronized <V> void onPrefetchIssued(FetchFuture<V> fetchFuture) {
@@ -56,7 +56,7 @@ class CacheStats {
     synchronized <V> void onDemandFetch(FetchFuture<V> fetchFuture) {
         // prefetch->fetch delay
         long promotion_delay = fetchFuture.millisSinceCreated();
-        promotionDelay.addValue(promotion_delay);
+        //promotionDelay.addValue(promotion_delay);
         
         prefetchAccuracy.markDemandFetched(fetchFuture);
         
@@ -88,12 +88,12 @@ class CacheStats {
     /**
      * @return The [avg, stdev] promotion delay of this cache.
      */
-    synchronized double[] getPromotionDelay() {
-        double avgDelay = promotionDelay.getMean();
-        double stddevDelay = promotionDelay.getStandardDeviation(); 
-        double ret[] = {avgDelay, stddevDelay};
-        return ret;
-    }
+//    synchronized double[] getPromotionDelay() {
+//        double avgDelay = promotionDelay.getMean();
+//        double stddevDelay = promotionDelay.getStandardDeviation(); 
+//        double ret[] = {avgDelay, stddevDelay};
+//        return ret;
+//    }
 
     synchronized int numHints() {
         return numHintedPrefetches;
