@@ -44,12 +44,7 @@
 		<link>
 			<name>EnergyAdaptiveCachingLib_src</name>
 			<type>2</type>
-			<locationURI>_android_EnergyAdaptiveCachingLib_e714224/src</locationURI>
-		</link>
-		<link>
-			<name>LibPowerTutor_src</name>
-			<type>2</type>
-			<locationURI>_android_LibPowerTutor_86cf0576/src</locationURI>
+			<location>/Volumes/android-source/external/bdh_apps/energy_adaptive_caching/library_project/src</location>
 		</link>
 	</linkedResources>
 </projectDescription>
