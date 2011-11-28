@@ -9,6 +9,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 import android.util.Log;
 
@@ -30,10 +32,15 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         CacheFetcher<V> labeledFetcher;
         FetchFuture<V> future;
         private boolean running = false;
+        private ReentrantLock lock;
+        private Condition condition;
+        
         CallableWrapperFetcher(CacheFetcher<V> fetcher_, FetchFuture<V> future_) {
             labeledFetcher = fetcher_;
             future = future_;
             labels = IntNWLabels.BACKGROUND;
+            lock = new ReentrantLock();
+            condition = lock.newCondition();
         }
         
         boolean isDemand() {
@@ -50,33 +57,42 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
                 // log?
                 throw e;
             } finally {
+                markFinished();
                 if (!isDemand()) {
                     cache.stats.onPrefetchDone(future);
                     cache.strategy.onPrefetchDone(future, false);
                 }
-                markFinished();
             }
             return result;
         }
         
-        private synchronized void markRunning() {
+        private void markRunning() {
+            lock.lock();
             running = true;
+            lock.unlock();
         }
         
-        private synchronized void markFinished() {
-            running = false;
-            notifyAll();
+        private void markFinished() {
+            lock.lock();
+            try {
+                running = false;
+                condition.signalAll();
+            } finally {
+                lock.unlock();
+            }
         }
 
-        synchronized void waitUntilDone() {
-            while (running) {
-                try {
-                    wait();
-                } catch (InterruptedException e) {
-                    // shouldn't happen normally.
-                    e.printStackTrace();
-                    break;
+        void waitUntilDone() {
+            lock.lock();
+            try {
+                while (running) {
+                    condition.await();
                 }
+            } catch (InterruptedException e) {
+                // shouldn't happen normally.
+                e.printStackTrace();
+            } finally {
+                lock.unlock();
             }
         }
     }
