@@ -58,4 +58,8 @@ class NetworkStats {
     
     // returns (IP, stats) mapping of all available networks.
     static native Map<Integer, NetworkStats> getAllNetworkStatsByIp();
+    
+    static {
+        System.loadLibrary("eac_support");
+    }
 }
