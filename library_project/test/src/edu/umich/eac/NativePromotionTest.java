@@ -13,7 +13,6 @@ public class NativePromotionTest extends InstrumentationTestCase {
     public native void testPromotion();
     
     static {
-        System.loadLibrary("eac_native");
         System.loadLibrary("eac_native_tests");
     }
 }

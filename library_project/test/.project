@@ -40,11 +40,4 @@
 		<nature>com.android.ide.eclipse.adt.AndroidNature</nature>
 		<nature>org.eclipse.jdt.core.javanature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>EnergyAdaptiveCachingLib_src</name>
-			<type>2</type>
-			<location>/Volumes/android-source/external/bdh_apps/energy_adaptive_caching/library_project/src</location>
-		</link>
-	</linkedResources>
 </projectDescription>

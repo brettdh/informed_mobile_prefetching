@@ -51,7 +51,6 @@ public class NativeNetworkStatsTest extends InstrumentationTestCase {
     }
     
     static {
-        System.loadLibrary("eac_native");
         System.loadLibrary("eac_native_tests");
     }
 }

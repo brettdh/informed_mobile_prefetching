@@ -28,8 +28,4 @@ public class AdaptiveStrategyTest extends InstrumentationTestCase {
         Thread.sleep(5000);
         assertTrue(future2.isDone());
     }
-    
-    static {
-        System.loadLibrary("eac_native");
-    }
 }
