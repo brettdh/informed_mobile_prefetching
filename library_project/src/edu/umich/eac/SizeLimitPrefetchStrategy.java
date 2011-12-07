@@ -6,9 +6,13 @@ import android.content.Context;
 
 public class SizeLimitPrefetchStrategy extends PrefetchStrategy {
     // K9's default for prefetching
-    private static int sizeLimit = 32768;
+    //private static int sizeLimit = 32*1024;
+    
+    // just above median size in newsreader article set
+    private static int sizeLimit = 128*1024;
 
-    public static void setSizeLimit(int limit) {
+    // TODO: use this in benchmark setup to set the limit with an argument.
+    private static void setSizeLimit(int limit) {
         sizeLimit = limit;
     }
     

@@ -30,17 +30,8 @@ import edu.umich.libpowertutor.EnergyEstimates;
 import edu.umich.libpowertutor.EnergyUsage;
 
 public class AdaptivePrefetchStrategy extends PrefetchStrategy {
-    private static final String LOG_FILENAME = "/sdcard/intnw/adaptive_prefetch_decisions.log";
     static final String TAG = AdaptivePrefetchStrategy.class.getName();
 
-    private PrintWriter logFileWriter;
-    void logPrint(String msg) {
-        if (logFileWriter != null) {
-            final long now = System.currentTimeMillis();
-            logFileWriter.println(String.format("%d %s", now, msg));
-        }
-    }
-    
     // TODO: determine this from Android APIs
     private static final String CELLULAR_IFNAME = "rmnet0";
     
@@ -103,11 +94,6 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         super.setup(context, goalTime, energyBudget, dataBudget);
         
         this.context = context;
-        try {
-            logFileWriter = new PrintWriter(new FileWriter(LOG_FILENAME, true), true);
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to create log file: " + e.getMessage());
-        }
         
         long millisUntilGoal = goalTime.getTime() - System.currentTimeMillis();
         logPrint(String.format("Setup adaptive strategy with energy budget %.3f%% data budget %d bytes  goal %d ms from now",
@@ -377,6 +363,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return shouldIssuePrefetch;
     }
     
+    private static double PROHIBITIVE_ENERGY_COST = 1.071 * Math.pow(10, 20); // U.S. energy consumption, 2007
+    private static double PROHIBITIVE_DATA_COST = 200 * Math.pow(2, 40); // 200TB, about the size of Google's index
+    
     private double calculateCost(PrefetchBatch batch, int netType) {
         double energyWeight = calculateEnergyWeight();
         double dataWeight = calculateDataWeight();
@@ -429,6 +418,10 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
     
     private double currentEnergyCost(PrefetchBatch batch, int netType) {
+        if (energyWeight.supplyIsExhausted()) {
+            return PROHIBITIVE_ENERGY_COST;
+        }
+        
         int datalen = batch.bytesToTransfer();
         double energyCost;
         if (netType == ConnectivityManager.TYPE_MOBILE) {
@@ -478,6 +471,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         if (netType == ConnectivityManager.TYPE_WIFI) {
             return 0;
         } else {
+            if (dataWeight.supplyIsExhausted()) {
+                return PROHIBITIVE_DATA_COST;
+            }
             return batch.bytesToTransfer();
         }
     }

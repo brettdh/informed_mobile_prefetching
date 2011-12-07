@@ -8,7 +8,8 @@ import android.util.Log;
 
 public class GoalAdaptiveResourceWeight {
     private static final int UPDATE_DURATION_MILLIS = 1000;
-    private static final double PROHIBITIVELY_LARGE_WEIGHT = 99999999;
+    private static final double PROHIBITIVELY_LARGE_WEIGHT = Math.pow(2, 200); // really large, but shouldn't overflow (max ~ 2^1023)
+    
     private static final String TAG = GoalAdaptiveResourceWeight.class.getName();
     private double supply;
     final private double initialSupply;
@@ -100,17 +101,25 @@ public class GoalAdaptiveResourceWeight {
         updateWeight();
     }
     
+    public synchronized boolean supplyIsExhausted() {
+        double adjustedSupply = computeAdjustedSupply();
+        return (supply <= 0.0 || adjustedSupply <= 0.0);
+    }
+    
     private synchronized void updateWeight() {
         Date now = new Date();
         
         logPrint(String.format("Old %s weight: %s", type, String.valueOf(weight)));
         // "fudge factor" to avoid overshooting budget.  Borrowed from Odyssey.
-        double adjustedSupply = supply - (0.05 * supply + 0.01 * initialSupply);
+        double adjustedSupply = computeAdjustedSupply();
         if (supply <= 0.0 || adjustedSupply <= 0.0) {
             weight = PROHIBITIVELY_LARGE_WEIGHT;
         } else if (now.after(goalTime)) {
             // goal reached; spend away!  (We shouldn't see this in our experiments.)
-            weight = 0.0;
+            // weight = 0.0;
+            // on second thought, let's try to avoid spending like crazy at the end
+            //  due to subtle timing issues.
+            weight = PROHIBITIVELY_LARGE_WEIGHT;
         } else {
             double futureDemand = spendingRate * secondsUntil(goalTime);
             logPrint(String.format("Future %s demand: %s  weight %s  multiplier %s",
@@ -123,6 +132,21 @@ public class GoalAdaptiveResourceWeight {
         weight = Math.max(weight, aggressiveNonZeroWeight());
         
         logPrint(String.format("New %s weight: %s", type, String.valueOf(weight)));
+    }
+
+    private static final double VARIABLE_BUFFER_WEIGHT = 0.05;
+    //private static final double CONSTANT_BUFFER_WEIGHT = 0.01;
+    
+    // trying a higher constant factor because of the artificially short experiment.
+    // This is based on taking 1% of a 2-hour experiment's starting supply.
+    //  If X is the 15-minute supply and 8X is the 2-hour supply,
+    //  then the fudge factor is 0.01 * 8X, or 0.08X.
+    private static final double CONSTANT_BUFFER_WEIGHT = 0.08;
+
+    // adjust the resource supply by an Odyssey-style "fudge factor" to 
+    //  make it less likely we'll overshoot the budget.
+    private double computeAdjustedSupply() {
+        return supply - (VARIABLE_BUFFER_WEIGHT * supply + CONSTANT_BUFFER_WEIGHT * initialSupply);
     }
     
     private double aggressiveNonZeroWeight() {

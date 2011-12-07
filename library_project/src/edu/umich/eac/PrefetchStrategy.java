@@ -1,10 +1,14 @@
 package edu.umich.eac;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Date;
 import java.util.Map;
 import java.util.EnumMap;
 
 import android.content.Context;
+import android.util.Log;
 import edu.umich.eac.PrefetchStrategyType;
 import edu.umich.eac.AggressivePrefetchStrategy;
 import edu.umich.eac.ConservativePrefetchStrategy;
@@ -26,6 +30,11 @@ abstract class PrefetchStrategy {
      */
     public void setup(Context context, Date goalTime, double energyGoal, int dataGoal) {
         wifiTracker = new WifiTracker(context);
+        try {
+            logFileWriter = new PrintWriter(new FileWriter(LOG_FILENAME, true), true);
+        } catch (IOException e) {
+            Log.e(this.getClass().getName(), "Failed to create log file: " + e.getMessage());
+        }
     }
     
     /**
@@ -66,5 +75,15 @@ abstract class PrefetchStrategy {
                        AdaptivePrefetchStrategy.class);
         strategies.put(PrefetchStrategyType.SIZE_LIMIT,
                        SizeLimitPrefetchStrategy.class);
+    }
+    
+    private static final String LOG_FILENAME = "/sdcard/intnw/adaptive_prefetch_decisions.log";
+    
+    private PrintWriter logFileWriter;
+    void logPrint(String msg) {
+        if (logFileWriter != null) {
+            final long now = System.currentTimeMillis();
+            logFileWriter.println(String.format("%d %s", now, msg));
+        }
     }
 }
