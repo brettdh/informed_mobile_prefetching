@@ -367,11 +367,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private static double PROHIBITIVE_DATA_COST = 200 * Math.pow(2, 40); // 200TB, about the size of Google's index
     
     private double calculateCost(PrefetchBatch batch, int netType) {
-        double energyWeight = calculateEnergyWeight();
-        double dataWeight = calculateDataWeight();
-        
         double energyCostNow = currentEnergyCost(batch, netType);
         double dataCostNow = currentDataCost(batch, netType);
+        
+        double duration = currentPrefetchDuration(batch, netType);
+        double energyWeight = calculateEnergyWeight(energyCostNow, duration);
+        double dataWeight = calculateDataWeight(dataCostNow, duration);
         
         double energyCostFuture = averageEnergyCost(batch);
         double dataCostFuture = averageDataCost(batch);
@@ -391,6 +392,20 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         return totalCost;
     }
 
+    private double currentPrefetchDuration(PrefetchBatch batch, int netType) {
+        NetworkStats stats = null;
+        if (netType == ConnectivityManager.TYPE_MOBILE) {
+            stats = currentNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
+        } else {
+            stats = currentNetworkStats.get(ConnectivityManager.TYPE_WIFI);
+            if (stats == null) {
+                // spending rate will be high, wifi cost will be higher
+                return 1;
+            }
+        }
+        return batch.estimateFetchTime(stats.bandwidthDown, stats.bandwidthUp, stats.rttMillis);
+    }
+
     private void logCost(String type, 
                          double costNow, double costFuture, double costDelta,
                          double weight, double weightedCost) {
@@ -401,7 +416,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                                String.valueOf(weightedCost)));
     }
 
-    private double calculateEnergyWeight() {
+    private double calculateEnergyWeight(double prefetchCost, double prefetchDuration) {
         if (fixedAdaptiveParamsEnabled) {
             return fixedEnergyWeight;
         } else {
@@ -409,7 +424,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
 
-    private double calculateDataWeight() {
+    private double calculateDataWeight(double prefetchCost, double prefetchDuration) {
         if (fixedAdaptiveParamsEnabled) {
             return fixedDataWeight;
         } else {
