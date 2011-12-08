@@ -87,6 +87,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     private Map<Integer, NetworkStats> currentNetworkStats;
     private AverageNetworkStats averageNetworkStats;
     
+    private PassiveThreegEstimate threegEstimate = new PassiveThreegEstimate();
+    
     private MonitorThread monitorThread;
     
     @Override
@@ -222,6 +224,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                     logPrint(String.format("Evaluating prefetch 0x%08x", batch.first().prefetch.hashCode()));
                 }
                 if (shouldIssuePrefetch(batch)) {
+                    if (!wifiTracker.isWifiAvailable()) {
+                        threegEstimate.beginEstimation(batch.first().prefetch);
+                    }
                     issuePrefetch(batch.first());
                     batch.pop();
                     break;
@@ -233,7 +238,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             batch.drainTo(deferredPrefetches);
             tasksToEvaluate.drainTo(deferredPrefetches);
         }
-        
+
         private boolean cannotComplete(PrefetchTask firstFetch) {
             if (firstFetch.prefetch.hasLabels(IntNWLabels.WIFI_ONLY) &&
                 !wifiTracker.isWifiAvailable()) {
@@ -267,15 +272,26 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {
         logPrint(String.format("Prefetch %s for fetcher 0x%08x",
                  cancelled ? "cancelled" : "done", prefetch.hashCode()));
-        PrefetchTask dummy = new PrefetchTask(prefetch);
         if (cancelled) {
             monitorThread.removeTask(prefetch);
         }
         removePrefetchFromList(prefetchesInProgress, prefetch);
         monitorThread.wakeup();
-        //prefetchesInProgress.remove(dummy);
+        
+        int threegBandwidthEstimate = threegEstimate.getBandwidthAfterPrefetchDone(prefetch);
+        if (threegBandwidthEstimate > 0) {
+            updateThreegBandwidthDown(threegBandwidthEstimate);
+        }
     }
     
+    private synchronized void updateThreegBandwidthDown(int threegBandwidthEstimate) {
+        int threegType = ConnectivityManager.TYPE_MOBILE;
+        NetworkStats newStats = currentNetworkStats.get(threegType);
+        newStats.bandwidthDown = threegBandwidthEstimate;
+        averageNetworkStats.add(threegType, newStats);
+        logPrint(String.format("New passive 3G bandwidth-down estimate: %d bytes/sec", threegBandwidthEstimate));
+    }
+
     private void removePrefetchFromList(BlockingQueue<PrefetchTask> prefetches, FetchFuture<?> prefetch) {
         PrefetchTask victim = null;
         for (PrefetchTask task : prefetches) {
