@@ -69,6 +69,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         new PriorityBlockingQueue<PrefetchTask>();
     
     private static final int NUM_CONCURRENT_PREFETCHES = 1;
+
+    private static NetworkStats HARDCODED_INITIAL_THREEG_STATS = null;
     private BlockingQueue<PrefetchTask> prefetchesInProgress = 
         new ArrayBlockingQueue<PrefetchTask>(NUM_CONCURRENT_PREFETCHES);
     
@@ -109,9 +111,16 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         energyUsage = new EnergyUsage();
         mDataSpent = new ProcNetworkStats(CELLULAR_IFNAME);
         
+        // set from initial values in trace
+        HARDCODED_INITIAL_THREEG_STATS = new NetworkStats();
+        HARDCODED_INITIAL_THREEG_STATS.bandwidthDown = 51196;
+        HARDCODED_INITIAL_THREEG_STATS.bandwidthUp = 1497;
+        HARDCODED_INITIAL_THREEG_STATS.rttMillis = 207;
+        
         currentNetworkStats = NetworkStats.getAllNetworkStats(context);
+        currentNetworkStats.put(ConnectivityManager.TYPE_MOBILE, HARDCODED_INITIAL_THREEG_STATS);
         averageNetworkStats = new AverageNetworkStats();
-        averageNetworkStats.initialize(NetworkStats.getAllNetworkStats(context));
+        averageNetworkStats.initialize(currentNetworkStats);
         
         monitorThread = new MonitorThread();
         monitorThread.start();
@@ -129,16 +138,16 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         fixedDataWeight = dataWeight;
     }
 
-    private Date lastEnergyStatsUpdate = new Date();
+    private Date lastResourceStatsUpdate = new Date();
     private Context context;
     
     private synchronized void updateStats() {
-        if (System.currentTimeMillis() - lastEnergyStatsUpdate.getTime() > 1000) {
+        if (System.currentTimeMillis() - lastResourceStatsUpdate.getTime() > 1000) {
             updateEnergyStats();
-            lastEnergyStatsUpdate = new Date();
+            updateDataStats();
+            lastResourceStatsUpdate = new Date();
         }
         updateNetworkStats();
-        updateDataStats();
     }
 
     private synchronized void updateDataStats() {
@@ -156,10 +165,16 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private synchronized void updateNetworkStats() {
-        currentNetworkStats = NetworkStats.getAllNetworkStats(context);
-        for (Integer type : currentNetworkStats.keySet()) {
-            NetworkStats newStats = currentNetworkStats.get(type);
-            averageNetworkStats.add(type, newStats);
+        Map<Integer, NetworkStats> newStats = NetworkStats.getAllNetworkStats(context);
+//        for (Integer type : currentNetworkStats.keySet()) {
+//            NetworkStats newStats = currentNetworkStats.get(type);
+//            averageNetworkStats.add(type, newStats);
+//        }
+        // Only update wifi, because the 3G measurement is stale.
+        if (newStats.containsKey(ConnectivityManager.TYPE_WIFI)) {
+            NetworkStats wifiStats = newStats.get(ConnectivityManager.TYPE_WIFI);
+            currentNetworkStats.put(ConnectivityManager.TYPE_WIFI, wifiStats);
+            averageNetworkStats.add(ConnectivityManager.TYPE_WIFI, wifiStats);
         }
     }
 
@@ -223,6 +238,10 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
                 } else {
                     logPrint(String.format("Evaluating prefetch 0x%08x", batch.first().prefetch.hashCode()));
                 }
+                if (alreadyIssued(batch.first())) {
+                    batch.pop();
+                    continue;
+                }
                 if (shouldIssuePrefetch(batch)) {
                     if (!wifiTracker.isWifiAvailable()) {
                         threegEstimate.beginEstimation(batch.first().prefetch);
@@ -284,12 +303,20 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         }
     }
     
-    private synchronized void updateThreegBandwidthDown(int threegBandwidthEstimate) {
-        int threegType = ConnectivityManager.TYPE_MOBILE;
-        NetworkStats newStats = currentNetworkStats.get(threegType);
-        newStats.bandwidthDown = threegBandwidthEstimate;
-        averageNetworkStats.add(threegType, newStats);
-        logPrint(String.format("New passive 3G bandwidth-down estimate: %d bytes/sec", threegBandwidthEstimate));
+    private /*synchronized*/ void updateThreegBandwidthDown(int threegBandwidthEstimate) {
+//        int threegType = ConnectivityManager.TYPE_MOBILE;
+//        NetworkStats newStats = currentNetworkStats.get(threegType);
+//        newStats.bandwidthDown = threegBandwidthEstimate;
+//        currentNetworkStats.put(threegType, newStats);
+//        averageNetworkStats.add(threegType, newStats);
+        
+        // These can be very very wrong sometimes, and that affects cost calculations badly.
+        //   i.e. when I have wifi, I think the prefetch will have astronomical cost on average,
+        //   so of course I must prefetch it right now.
+        logPrint(String.format("New passive 3G bandwidth-down estimate: %d bytes/sec (not using; just logging)", threegBandwidthEstimate));
+//        logPrint(String.format("New avg 3G bandwidth-down value: %d bytes/sec", 
+//                               averageNetworkStats.get(threegType).bandwidthDown));
+                               
     }
 
     private void removePrefetchFromList(BlockingQueue<PrefetchTask> prefetches, FetchFuture<?> prefetch) {
@@ -336,6 +363,13 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
          *   This is the place to do that.
          */
         Double cost = null;
+        
+        if (alreadyIssued(batch.first())) {
+            // caller will "issue" the prefetch by realizing that it's already done 
+            //  and removing it from the queue.
+            logPrint(String.format("Already issued prefetch 0x%x; will remove it", batch.first().prefetch.hashCode()));
+            return true;
+        }
         
         Double threegCost = calculateCost(batch, ConnectivityManager.TYPE_MOBILE);
         Double benefit = calculateBenefit(batch);
@@ -400,9 +434,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double weightedEnergyCost = energyWeight * energyCostDelta;
         double weightedDataCost = dataWeight * dataCostDelta;
         double totalCost = weightedEnergyCost + weightedDataCost;
-        logCost("Energy", energyCostNow, energyCostFuture, energyCostDelta,
+        logCost("Energy", energyCostNow, energyCostFuture, hintAccuracy, energyCostDelta,
                 energyWeight, weightedEnergyCost);
-        logCost("Data", dataCostNow, dataCostFuture, dataCostDelta, 
+        logCost("Data", dataCostNow, dataCostFuture, hintAccuracy, dataCostDelta, 
                 dataWeight, weightedDataCost);
         logPrint(String.format("Total cost: %s", String.valueOf(totalCost)));
         return totalCost;
@@ -423,11 +457,12 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
     }
 
     private void logCost(String type, 
-                         double costNow, double costFuture, double costDelta,
+                         double costNow, double costFuture, double hintAccuracy, double costDelta,
                          double weight, double weightedCost) {
-        logPrint(String.format("%s cost:  now %s later %s delta %s weight %s  weighted cost %s",
+        logPrint(String.format("%s cost:  now %s later %s hint accuracy %s delta %s weight %s  weighted cost %s",
                                type,
                                String.valueOf(costNow), String.valueOf(costFuture),
+                               String.valueOf(hintAccuracy),
                                String.valueOf(costDelta), String.valueOf(weight),
                                String.valueOf(weightedCost)));
     }
@@ -436,7 +471,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         if (fixedAdaptiveParamsEnabled) {
             return fixedEnergyWeight;
         } else {
-            return energyWeight.getWeight();
+            return energyWeight.getWeight("energy", prefetchCost, prefetchDuration);
         }
     }
 
@@ -444,7 +479,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         if (fixedAdaptiveParamsEnabled) {
             return fixedDataWeight;
         } else {
-            return dataWeight.getWeight();
+            return dataWeight.getWeight("data", prefetchCost, prefetchDuration);
         }
     }
     
@@ -457,6 +492,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double energyCost;
         if (netType == ConnectivityManager.TYPE_MOBILE) {
             NetworkStats mobileStats = currentNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
+            logPrint(String.format("Calculating energy cost on 3G... net estimates: bw_down %d bw_up %d rtt %d",
+                                   mobileStats.bandwidthDown, mobileStats.bandwidthUp, mobileStats.rttMillis));
             energyCost = 
                 EnergyEstimates.estimateMobileEnergyCost(datalen, 
                                                          mobileStats.bandwidthDown,
@@ -464,10 +501,17 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         } else {
             NetworkStats wifiStats = currentNetworkStats.get(ConnectivityManager.TYPE_WIFI);
             if (wifiStats == null) {
-                // TODO: should try sending on wifi even if I don't have the stats yet.
-                // But: in my experiments, I should have the stats.
-                return Double.MAX_VALUE;
+                // should always have the average stats.  fall back on those
+                wifiStats = averageNetworkStats.get(ConnectivityManager.TYPE_WIFI);
+                if (wifiStats == null) {
+                    // shouldn't happen in my experiments.
+                    return PROHIBITIVE_ENERGY_COST;
+                }
             }
+            logPrint(String.format("Calculating energy cost on wifi... net estimates: bw_down %d bw_up %d rtt %d",
+                                   wifiStats.bandwidthDown, 
+                                   wifiStats.bandwidthUp,
+                                   wifiStats.rttMillis));
             energyCost =
                 EnergyEstimates.estimateWifiEnergyCost(datalen, 
                                                        wifiStats.bandwidthDown,
@@ -482,10 +526,18 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         NetworkStats wifiStats = averageNetworkStats.get(ConnectivityManager.TYPE_WIFI);
         NetworkStats mobileStats = averageNetworkStats.get(ConnectivityManager.TYPE_MOBILE);
 
+        logPrint(String.format("Calculating average energy cost"));
+
         double mobileEnergyCost = 
             EnergyEstimates.estimateMobileEnergyCostAverage(datalen, 
                                                             mobileStats.bandwidthDown,
                                                             mobileStats.rttMillis);
+        logPrint(String.format("  avg cost on 3G: %f mJ avg net estimates: bw_down %d bw_up %d rtt %d",
+                                mobileEnergyCost,
+                                mobileStats.bandwidthDown,
+                                mobileStats.bandwidthUp, 
+                                mobileStats.rttMillis));
+
         if (wifiStats == null) {
             return mobileEnergyCost / 1000.0;
         }
@@ -495,6 +547,14 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             EnergyEstimates.estimateWifiEnergyCost(datalen, 
                                                    wifiStats.bandwidthDown,
                                                    wifiStats.rttMillis);
+        
+        logPrint(String.format("  avg cost on wifi: %f mJ avg net estimates: bw_down %d bw_up %d rtt %d",
+                                wifiEnergyCost, 
+                                wifiStats.bandwidthDown,
+                                wifiStats.bandwidthUp,
+                                wifiStats.rttMillis));
+        logPrint(String.format("  expected wifi availability: %.2f%%", wifiAvailability * 100.0));
+        
         return expectedValue(wifiEnergyCost, mobileEnergyCost, wifiAvailability) / 1000.0;
     }
 

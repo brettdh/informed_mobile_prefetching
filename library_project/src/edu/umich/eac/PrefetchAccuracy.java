@@ -37,6 +37,22 @@ class PrefetchAccuracy {
         return ((double) utilizedPrefetchHints) / ((double) hintedPrefetches);
     }
     
+    public enum Application {
+        EMAIL, NEWS
+    }
+    
+    public double getHardcodedAccuracy(Application app) {
+        switch (app) {
+        case EMAIL:
+            return 0.8;  // reported accuracy of GMail Priority Inbox
+        case NEWS:
+            return 0.64; // 16 out of 25 articles read
+        }
+        
+        // NOTREACHED
+        return 1.0;
+    }
+    
     /**
      * Call when the application hints a prefetch.
      * @param prefetch

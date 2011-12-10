@@ -32,13 +32,31 @@ class NetworkStats {
         Map<Integer, NetworkStats> netStatsByNetType = new HashMap<Integer, NetworkStats>();
         for (Integer ipAddr : stats.keySet()) {
             Integer netType = getNetType(context, ipAddr);
-            if (netType != null) {
+            if (netType != null && statsValid(stats.get(ipAddr))) {
                 netStatsByNetType.put(netType, stats.get(ipAddr));
             }
         }
         return netStatsByNetType;
     }
     
+    private static boolean statsValid(NetworkStats stats) {
+        if (stats.bandwidthDown == 1250000 && 
+            stats.bandwidthUp == 1250000 &&
+            stats.rttMillis == 1) {
+            // scout sets these when it fails to look up the wifi stats.
+            //  apparently this is caused by a race between receiving a
+            //  connectivity broadcast intent and calling getConnectionInfo()
+            //  from the WifiManager; you can lose the wifi in between,
+            //  in which case the essid/bssid lookup fails, the breadcrumbs db
+            //  lookup fails, and the scout creates the network with bogus stats.
+            // Rather than trying to fix the race, I'll just cope with invalid estimates
+            //  by not adding them to the set of current network stats.
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     private static Integer getNetType(Context context, int ipAddr) {
         WifiManager wifi = 
             (WifiManager) context.getSystemService(Context.WIFI_SERVICE);

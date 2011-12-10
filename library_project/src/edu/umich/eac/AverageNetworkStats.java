@@ -5,8 +5,8 @@ import java.util.Map;
 
 public class AverageNetworkStats {
     public void initialize(Map<Integer, NetworkStats> initStats) {
-        stats = initStats;
         for (int type : initStats.keySet()) {
+            stats.put(type, initStats.get(type));
             statsUpdateCounts.put(type, 1);
         }
     }

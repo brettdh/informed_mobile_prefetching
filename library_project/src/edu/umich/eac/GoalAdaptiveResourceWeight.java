@@ -11,6 +11,7 @@ public class GoalAdaptiveResourceWeight {
     private static final double PROHIBITIVELY_LARGE_WEIGHT = Math.pow(2, 200); // really large, but shouldn't overflow (max ~ 2^1023)
     
     private static final String TAG = GoalAdaptiveResourceWeight.class.getName();
+    private static final int EWMA_SWITCH_THRESHOLD = 100;
     private double lastSupply;
     final private double initialSupply;
     private Date goalTime;
@@ -18,10 +19,11 @@ public class GoalAdaptiveResourceWeight {
     private Timer updateTimer;
     private TimerTask updateTask;
     
-    private double lastSpendingRate = 0.0;
+    private double lastSpendingRate;
     private Date lastResourceUseSample;
     private AdaptivePrefetchStrategy strategy;
     private String type;
+    private int spendingRateUpdateCount;
     
     private void logPrint(String msg) {
         if (strategy != null) {
@@ -38,11 +40,12 @@ public class GoalAdaptiveResourceWeight {
         this.goalTime = goalTime;
         lastResourceUseSample = new Date();
         
-        lastSpendingRate = 0.0;
+        lastSpendingRate = supply / secondsUntil(goalTime);
+        spendingRateUpdateCount = 1;
                 
         // large starting weight: I'll spend my entire budget to save
         //  an amount of time as big as my entire goal.
-        this.weight = secondsUntil(goalTime) / ((double) supply);
+        this.weight = secondsUntil(goalTime) / supply;
         
         updateTimer = new Timer();
         updateTask = new TimerTask() {
@@ -88,6 +91,7 @@ public class GoalAdaptiveResourceWeight {
         double rateSample = amount / samplePeriod;
         double alpha = smoothingFactor();
         lastSpendingRate = calculateNewSpendingRate(lastSpendingRate, rateSample);
+        spendingRateUpdateCount++;
         lastSupply -= amount;
         
         logPrint(String.format("New %s spending rate: %s   new supply: %s  (alpha %s)",
@@ -98,8 +102,14 @@ public class GoalAdaptiveResourceWeight {
     }
 
     private double calculateNewSpendingRate(double oldRate, double rateSample) {
-        double alpha = smoothingFactor();
-        return (1 - alpha) * rateSample + alpha * oldRate;
+        if (spendingRateUpdateCount < EWMA_SWITCH_THRESHOLD) {
+            // Simple arithmetic mean for the first X updates
+            int n = spendingRateUpdateCount;
+            return ((oldRate * n) + rateSample) / (n + 1);
+        } else {
+            double alpha = smoothingFactor();
+            return (1 - alpha) * rateSample + alpha * oldRate;
+        }
     }
     
     synchronized void forceUpdateWeight() {
@@ -132,6 +142,8 @@ public class GoalAdaptiveResourceWeight {
             return PROHIBITIVELY_LARGE_WEIGHT;
         } else {
             double futureDemand = spendingRate * secondsUntil(goalTime);
+            logPrint(String.format("%s spending rate: %s  adjusted supply: %s", 
+                                   type, String.valueOf(spendingRate), String.valueOf(adjustedSupply)));
             logPrint(String.format("Future %s demand: %s  weight %s  multiplier %s",
                                    type, 
                                    String.valueOf(futureDemand), 
@@ -140,6 +152,7 @@ public class GoalAdaptiveResourceWeight {
             newWeight *= (futureDemand / adjustedSupply);
         }
         newWeight = Math.max(newWeight, aggressiveNonZeroWeight());
+        newWeight = Math.min(newWeight, PROHIBITIVELY_LARGE_WEIGHT); // make sure it doesn't grow without bound
         
         logPrint(String.format("New %s weight: %s", type, String.valueOf(newWeight)));
         return newWeight;
@@ -176,9 +189,13 @@ public class GoalAdaptiveResourceWeight {
     
     // return the resource cost weight assuming I issue the given prefetch.
     // the values passed in here are for current cost, not delta cost.
-    public synchronized double getWeight(double prefetchCost, double prefetchDuration) {
+    public synchronized double getWeight(String type, double prefetchCost, double prefetchDuration) {
+        logPrint(String.format("Calculating lookahead %s weight: cost %s duration %s",
+                               type, String.valueOf(prefetchCost), String.valueOf(prefetchDuration)));
         double spendingRate = 
             calculateNewSpendingRate(lastSpendingRate, lastSpendingRate + (prefetchCost / prefetchDuration));
+        logPrint(String.format("Lookahead %s spending rate: %s", 
+                               type, String.valueOf(spendingRate)));
         return calculateNewWeight(weight, lastSupply - prefetchCost, spendingRate);
     }
 

@@ -10,6 +10,8 @@ import java.io.PrintWriter;
 
 import org.apache.commons.math.stat.descriptive.SummaryStatistics;
 
+import edu.umich.eac.PrefetchAccuracy.Application;
+
 import android.util.Log;
 
 class CacheStats {
@@ -82,7 +84,8 @@ class CacheStats {
     }
     
     synchronized double getPrefetchAccuracy() {
-        return prefetchAccuracy.getAccuracy();
+        //return prefetchAccuracy.getAccuracy();
+        return prefetchAccuracy.getHardcodedAccuracy(Application.NEWS);
     }
     
     /**
