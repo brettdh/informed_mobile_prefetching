@@ -97,6 +97,12 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
     }
     
+    public String toString() {
+        StringBuffer buffer = new StringBuffer();
+        buffer.append("FetchFuture fetcher: ").append(fetcher.labeledFetcher.toString());
+        return buffer.toString();
+    }
+    
     boolean wasIssued() {
         return (realFuture != null);
     }

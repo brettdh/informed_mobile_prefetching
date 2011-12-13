@@ -1,8 +1,12 @@
 package edu.umich.eac;
 
+import java.util.PriorityQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import edu.umich.eac.AdaptivePrefetchStrategy.PrefetchTask;
+
+import android.content.Context;
 import android.test.InstrumentationTestCase;
 
 public class PrefetchAccuracyTest extends InstrumentationTestCase {
@@ -61,5 +65,56 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
         assertEquals(2.0/3.0, cache.stats.getPrefetchAccuracy(), 0.001);
         future2.get();
         assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
+    }
+    
+    private class FakeHTTPCacheFetcher extends CacheFetcher<Integer> {
+        private int prefetchClass;
+        public FakeHTTPCacheFetcher(int prefetchClass) {
+            this.prefetchClass = prefetchClass;
+        }
+        @Override
+        public Integer call(int labels) throws Exception {
+            return null;
+        }
+
+        @Override
+        public int bytesToTransfer() {
+            return 0;
+        }
+
+        @Override
+        public int getPrefetchClass() {
+            return prefetchClass;
+        }
+    }
+    
+    public void testNewsreaderPrefetchOrder() {
+        Context context = getInstrumentation().getContext();
+        EnergyAdaptiveCache cache = new EnergyAdaptiveCache(context, PrefetchStrategyType.CONSERVATIVE);
+        PriorityQueue<PrefetchTask> q = new PriorityQueue<PrefetchTask>();
+        PrefetchTask[] fetches = new PrefetchTask[] {
+            new PrefetchTask(new FetchFuture<Integer>(new FakeHTTPCacheFetcher(0), cache)),
+            new PrefetchTask(new FetchFuture<Integer>(new FakeHTTPCacheFetcher(1), cache)),
+            new PrefetchTask(new FetchFuture<Integer>(new FakeHTTPCacheFetcher(2), cache)),
+            new PrefetchTask(new FetchFuture<Integer>(new FakeHTTPCacheFetcher(0), cache)),
+            new PrefetchTask(new FetchFuture<Integer>(new FakeHTTPCacheFetcher(2), cache)),
+            new PrefetchTask(new FetchFuture<Integer>(new FakeHTTPCacheFetcher(1), cache))
+        };
+
+        for (PrefetchTask task : fetches) {
+            q.add(task);
+        }
+
+        assertHeadIs(q, fetches[2]);
+        assertHeadIs(q, fetches[4]);
+        assertHeadIs(q, fetches[0]);
+        assertHeadIs(q, fetches[3]);
+        assertHeadIs(q, fetches[1]);
+        assertHeadIs(q, fetches[5]);
+    }
+    
+    private void assertHeadIs(PriorityQueue<PrefetchTask> q, PrefetchTask expected) {
+        PrefetchTask actual = q.remove();
+        assertEquals(expected, actual);
     }
 }

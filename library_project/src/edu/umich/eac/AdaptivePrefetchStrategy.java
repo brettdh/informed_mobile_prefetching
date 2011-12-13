@@ -59,7 +59,7 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             }
             double myAccuracy = prefetch.getCache().stats.getPrefetchAccuracy(prefetch);
             double yourAccuracy = another.prefetch.getCache().stats.getPrefetchAccuracy(another.prefetch);
-            if ((myAccuracy - yourAccuracy) > 0.001) {
+            if (Math.abs(myAccuracy - yourAccuracy) > 0.001) {
                 // sort in descending order by accuracy
                 if (myAccuracy > yourAccuracy) {
                     // higher accuracy; I'm first
@@ -75,6 +75,15 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
 
         public void reset() {
             prefetch.reset();
+        }
+        
+        public String toString() {
+            StringBuffer buffer = new StringBuffer();
+            double myAccuracy = prefetch.getCache().stats.getPrefetchAccuracy(prefetch);
+            buffer.append("PrefetchTask: ").append("class ").append(prefetch.getPrefetchClass())
+                  .append(" accuracy ").append(myAccuracy)
+                  .append(" fetcher: ").append(prefetch.toString());
+            return buffer.toString();
         }
     }
 
