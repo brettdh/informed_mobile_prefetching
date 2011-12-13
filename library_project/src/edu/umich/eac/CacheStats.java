@@ -7,6 +7,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.commons.math.stat.descriptive.SummaryStatistics;
 
@@ -25,7 +27,9 @@ class CacheStats {
     private int numHintedPrefetches = 0;
     private int numCancelledFetches = 0;
     
-    private PrefetchAccuracy prefetchAccuracy = new PrefetchAccuracy();
+    //private PrefetchAccuracy prefetchAccuracy = new PrefetchAccuracy();
+    private Map<Integer, PrefetchAccuracy> prefetchAccuracyByClass =
+        new HashMap<Integer, PrefetchAccuracy>();
 
     public CacheStats() {
         // fake value to start so that prefetches aren't 
@@ -33,14 +37,23 @@ class CacheStats {
         //promotionDelay.addValue(promotionDelayInit);
     }
     
+    private PrefetchAccuracy getAccuracyByClass(int fetchClass) {
+        if (!prefetchAccuracyByClass.containsKey(fetchClass)) {
+            prefetchAccuracyByClass.put(fetchClass, new PrefetchAccuracy(fetchClass));
+        }
+        return prefetchAccuracyByClass.get(fetchClass);
+    }
+    
     synchronized <V> void onPrefetchIssued(FetchFuture<V> fetchFuture) {
-        prefetchAccuracy.addIssuedPrefetch(fetchFuture);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        accuracy.addIssuedPrefetch(fetchFuture);
         
         EnergyAdaptiveCache.logEvent("prefetch-start", fetchFuture.hashCode());
     }
     
     synchronized <V> void onPrefetchHint(FetchFuture<V> fetchFuture) {
-        prefetchAccuracy.addPrefetchHint(fetchFuture);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        accuracy.addPrefetchHint(fetchFuture);
         numHintedPrefetches++;
 
         EnergyAdaptiveCache.logEvent("hint", fetchFuture.hashCode());
@@ -51,7 +64,8 @@ class CacheStats {
     }
 
     synchronized <V> void onUnhintedDemandFetch(FetchFuture<V> fetchFuture) {
-        prefetchAccuracy.addUnhintedPrefetch(fetchFuture);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        accuracy.addUnhintedPrefetch(fetchFuture);
         numHintedPrefetches++;
     }
     
@@ -60,7 +74,8 @@ class CacheStats {
         long promotion_delay = fetchFuture.millisSinceCreated();
         //promotionDelay.addValue(promotion_delay);
         
-        prefetchAccuracy.markDemandFetched(fetchFuture);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        accuracy.markDemandFetched(fetchFuture);
         
         // promotion rate
         numDemandFetches++;
@@ -77,15 +92,18 @@ class CacheStats {
     }
     
     synchronized <V> void onFetchCancelled(FetchFuture<V> fetchFuture) {
-        prefetchAccuracy.removePrefetch(fetchFuture);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        accuracy.removePrefetch(fetchFuture);
         numCancelledFetches++;
         
         EnergyAdaptiveCache.logEvent("cancel", fetchFuture.hashCode());
     }
     
-    synchronized double getPrefetchAccuracy() {
+    synchronized double getPrefetchAccuracy(FetchFuture<?> fetchFuture) {
         //return prefetchAccuracy.getAccuracy();
-        return prefetchAccuracy.getHardcodedAccuracy(Application.NEWS);
+        //return prefetchAccuracy.getHardcodedAccuracy(Application.EMAIL);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        return accuracy.getHardcodedAccuracy(Application.NEWS);
     }
     
     /**

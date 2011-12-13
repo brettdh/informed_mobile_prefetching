@@ -14,6 +14,9 @@ import edu.umich.eac.AggressivePrefetchStrategy;
 import edu.umich.eac.ConservativePrefetchStrategy;
 
 abstract class PrefetchStrategy {
+    // based on 20 minutes of the Ypsilanti driving trace.
+    private static final double HARDCODED_HISTORICAL_WIFI_AVAILABILITY = 0.506568;
+
     protected WifiTracker wifiTracker;
     public abstract void onPrefetchEnqueued(FetchFuture<?> prefetch);
     public void onPrefetchDone(FetchFuture<?> prefetch, boolean cancelled) {}
@@ -29,7 +32,10 @@ abstract class PrefetchStrategy {
      * @param dataGoal Bytes of mobile data spendable before goalTime
      */
     public void setup(Context context, Date goalTime, double energyGoal, int dataGoal) {
-        wifiTracker = new WifiTracker(context);
+        // initialize the wifi availability from the trace.
+        wifiTracker = new WifiTracker(context, 
+                                      HARDCODED_HISTORICAL_WIFI_AVAILABILITY, 
+                                      goalTime.getTime() - System.currentTimeMillis());
         try {
             logFileWriter = new PrintWriter(new FileWriter(LOG_FILENAME, true), true);
         } catch (IOException e) {

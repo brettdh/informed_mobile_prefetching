@@ -18,11 +18,13 @@ import edu.umich.eac.CacheFetcher;
 import edu.umich.eac.IntNWLabels;
 
 class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
+    private static final int DEFAULT_FETCH_CLASS = 0;
     Future<V> realFuture;
     CallableWrapperFetcher fetcher;
     boolean cancelled;
     private Date timeCreated;
     private EnergyAdaptiveCache cache;
+    final int fetchClass;
     EnergyAdaptiveCache getCache() {
         return cache;
     }
@@ -126,11 +128,16 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
     }
 
     FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_) {
+        this(fetcher_, cache_, DEFAULT_FETCH_CLASS);
+    }
+    
+    FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_, int fetchClass) {
         realFuture = null;
         fetcher = new CallableWrapperFetcher(fetcher_, this);
         cancelled = false;
         cache = cache_;
         timeCreated = new Date();
+        this.fetchClass = fetchClass;
     }
     
     long millisSinceCreated() {

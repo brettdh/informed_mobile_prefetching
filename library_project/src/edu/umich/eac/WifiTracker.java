@@ -184,9 +184,23 @@ public class WifiTracker extends BroadcastReceiver {
     }
     
     public WifiTracker(Context context) {
+        this(context, -1.0, 0);
+    }
+    
+    public WifiTracker(Context context, double initAvailability, long durationMillis) {
         this.context = context;
         trackerCreated = new Date();
         lastEvent = trackerCreated;
+
+        if (durationMillis > 0) {
+            assert(initAvailability >= 0.0 && initAvailability <= 1.0);
+            
+            // pretend that the tracker has been up for durationMillis and observed
+            // (initAvailability) fraction of wifi available.
+            trackerCreated = new Date(trackerCreated.getTime() - durationMillis);
+            wifiAvailableMillis = (long)(durationMillis * initAvailability);
+            lastEvent = new Date();
+        }
         
         if (context != null) {
             IntentFilter filter = new IntentFilter();
