@@ -37,22 +37,23 @@ class CacheStats {
         //promotionDelay.addValue(promotionDelayInit);
     }
     
-    private PrefetchAccuracy getAccuracyByClass(int fetchClass) {
-        if (!prefetchAccuracyByClass.containsKey(fetchClass)) {
-            prefetchAccuracyByClass.put(fetchClass, new PrefetchAccuracy(fetchClass));
+    private PrefetchAccuracy getAccuracyByClass(FetchFuture<?> fetchFuture) {
+        int prefetchClass = fetchFuture.getPrefetchClass();
+        if (!prefetchAccuracyByClass.containsKey(prefetchClass)) {
+            prefetchAccuracyByClass.put(prefetchClass, new PrefetchAccuracy(prefetchClass));
         }
-        return prefetchAccuracyByClass.get(fetchClass);
+        return prefetchAccuracyByClass.get(prefetchClass);
     }
     
     synchronized <V> void onPrefetchIssued(FetchFuture<V> fetchFuture) {
-        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
         accuracy.addIssuedPrefetch(fetchFuture);
         
         EnergyAdaptiveCache.logEvent("prefetch-start", fetchFuture.hashCode());
     }
     
     synchronized <V> void onPrefetchHint(FetchFuture<V> fetchFuture) {
-        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
         accuracy.addPrefetchHint(fetchFuture);
         numHintedPrefetches++;
 
@@ -64,7 +65,7 @@ class CacheStats {
     }
 
     synchronized <V> void onUnhintedDemandFetch(FetchFuture<V> fetchFuture) {
-        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
         accuracy.addUnhintedPrefetch(fetchFuture);
         numHintedPrefetches++;
     }
@@ -74,7 +75,7 @@ class CacheStats {
         long promotion_delay = fetchFuture.millisSinceCreated();
         //promotionDelay.addValue(promotion_delay);
         
-        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
         accuracy.markDemandFetched(fetchFuture);
         
         // promotion rate
@@ -92,7 +93,7 @@ class CacheStats {
     }
     
     synchronized <V> void onFetchCancelled(FetchFuture<V> fetchFuture) {
-        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
         accuracy.removePrefetch(fetchFuture);
         numCancelledFetches++;
         
@@ -102,7 +103,7 @@ class CacheStats {
     synchronized double getPrefetchAccuracy(FetchFuture<?> fetchFuture) {
         //return prefetchAccuracy.getAccuracy();
         //return prefetchAccuracy.getHardcodedAccuracy(Application.EMAIL);
-        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture.fetchClass);
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
         return accuracy.getHardcodedAccuracy(Application.NEWS);
     }
     

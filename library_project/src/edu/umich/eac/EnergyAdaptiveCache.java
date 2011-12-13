@@ -33,15 +33,8 @@ public class EnergyAdaptiveCache {
      *          the hinted access, via get().
      */
     public <V> Future<V> prefetch(CacheFetcher<V> fetcher) {
-        return prefetch(new FetchFuture<V>(fetcher, this));
-    }
-    
-    public <V> Future<V> prefetch(CacheFetcher<V> fetcher, int fetchClass) {
-        return prefetch(new FetchFuture<V>(fetcher, this, fetchClass));
-    }
-    
-    private <V> Future<V> prefetch(FetchFuture<V> fetchFuture) {
         try {
+            FetchFuture<V> fetchFuture = new FetchFuture<V>(fetcher, this);
             stats.onPrefetchHint(fetchFuture);
             strategy.onPrefetchEnqueued(fetchFuture);
             
