@@ -97,6 +97,12 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         }
     }
     
+    public String toString() {
+        StringBuffer buffer = new StringBuffer();
+        buffer.append("FetchFuture fetcher: ").append(fetcher.labeledFetcher.toString());
+        return buffer.toString();
+    }
+    
     boolean wasIssued() {
         return (realFuture != null);
     }
@@ -123,6 +129,10 @@ class FetchFuture<V> implements Future<V>, Comparable<FetchFuture<V>> {
         return fetcher.labeledFetcher.estimateFetchTime(bandwidthDown,
                                                         bandwidthUp,
                                                         rttMillis);
+    }
+    
+    public int getPrefetchClass() {
+        return fetcher.labeledFetcher.getPrefetchClass();
     }
 
     FetchFuture(CacheFetcher<V> fetcher_, EnergyAdaptiveCache cache_) {

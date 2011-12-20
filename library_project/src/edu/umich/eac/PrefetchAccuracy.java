@@ -1,10 +1,13 @@
 package edu.umich.eac;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 class PrefetchAccuracy {
+    private int prefetchClass;
     /**
      * Computes the accuracy of the prefetch hints so far.
      * @return accuracy in the range [0.0, 1.0].
@@ -41,12 +44,17 @@ class PrefetchAccuracy {
         EMAIL, NEWS
     }
     
+    public enum NewsreaderPrefetchClass {
+        FEED0, FEED1, FEED2, FEED3, FEED4
+    }
+    
     public double getHardcodedAccuracy(Application app) {
         switch (app) {
         case EMAIL:
             return 0.8;  // reported accuracy of GMail Priority Inbox
         case NEWS:
-            return 0.64; // 16 out of 25 articles read
+            return newsreaderPrefetchAccuracyByFeed.get(prefetchClass);
+            //return 0.64; // 16 out of 25 articles read
         }
         
         // NOTREACHED
@@ -109,6 +117,23 @@ class PrefetchAccuracy {
     public PrefetchAccuracy() {
         prefetchHintHashes = new ArrayList<Integer>();
         prefetchHintsConsumed = new ArrayList<Boolean>();
+        prefetchClass = 0;
+    }
+    
+    public PrefetchAccuracy(int prefetchClass) {
+        this();
+        this.prefetchClass = prefetchClass;
+    }
+    
+    private static Map<Integer, Double> newsreaderPrefetchAccuracyByFeed;
+    static {
+        newsreaderPrefetchAccuracyByFeed = new HashMap<Integer, Double>();
+        newsreaderPrefetchAccuracyByFeed.put(NewsreaderPrefetchClass.FEED0.ordinal(), 8.0/9.0);
+        newsreaderPrefetchAccuracyByFeed.put(NewsreaderPrefetchClass.FEED1.ordinal(), 2.0/8.0);
+        newsreaderPrefetchAccuracyByFeed.put(NewsreaderPrefetchClass.FEED2.ordinal(), 3.0/3.0);
+        newsreaderPrefetchAccuracyByFeed.put(NewsreaderPrefetchClass.FEED3.ordinal(), 1.0/2.0);
+        newsreaderPrefetchAccuracyByFeed.put(NewsreaderPrefetchClass.FEED4.ordinal(), 2.0/3.0);
+        newsreaderPrefetchAccuracyByFeed.put(CacheFetcher.DEFAULT_PREFETCH_CLASS, 16.0/25.0);
     }
     
     private ArrayList<Integer> prefetchHintHashes;

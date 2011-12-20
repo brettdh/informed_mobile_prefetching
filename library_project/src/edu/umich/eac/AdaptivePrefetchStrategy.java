@@ -57,11 +57,34 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
             if (prefetch.equals(another.prefetch)) {
                 return 0;
             }
+            double myAccuracy = prefetch.getCache().stats.getHardcodedPrefetchAccuracy(prefetch);
+            double yourAccuracy = another.prefetch.getCache().stats.getHardcodedPrefetchAccuracy(another.prefetch);
+            if (Math.abs(myAccuracy - yourAccuracy) > 0.001) {
+                // sort in descending order by accuracy
+                if (myAccuracy > yourAccuracy) {
+                    // higher accuracy; I'm first
+                    return -1;
+                } else if (myAccuracy < yourAccuracy) {
+                    // lower accuracy; you're first
+                    return 1;
+                }
+            }
+            // all prefetch accuracies being equal, preserve hint order
             return order - another.order;
         }
 
         public void reset() {
             prefetch.reset();
+        }
+        
+        public String toString() {
+            StringBuffer buffer = new StringBuffer();
+            //double myAccuracy = prefetch.getCache().stats.getPrefetchAccuracy(prefetch);
+            double myAccuracy = prefetch.getCache().stats.getHardcodedPrefetchAccuracy(prefetch);
+            buffer.append("PrefetchTask: ").append("class ").append(prefetch.getPrefetchClass())
+                  .append(" accuracy ").append(myAccuracy)
+                  .append(" fetcher: ").append(prefetch.toString());
+            return buffer.toString();
         }
     }
 
@@ -427,7 +450,8 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double energyCostFuture = averageEnergyCost(batch);
         double dataCostFuture = averageDataCost(batch);
         
-        double hintAccuracy = batch.first().prefetch.getCache().stats.getPrefetchAccuracy();
+        //double hintAccuracy = batch.first().prefetch.getCache().stats.getPrefetchAccuracy(batch.first().prefetch);
+        double hintAccuracy = batch.first().prefetch.getCache().stats.getHardcodedPrefetchAccuracy(batch.first().prefetch);
         double energyCostDelta = energyCostNow - (hintAccuracy * energyCostFuture);
         double dataCostDelta = dataCostNow - (hintAccuracy * dataCostFuture);
         
@@ -582,7 +606,9 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         double benefit = batch.estimateFetchTime(expectedNetworkStats.bandwidthDown,
                                                  expectedNetworkStats.bandwidthUp,
                                                  expectedNetworkStats.rttMillis);
-        double accuracy = batch.first().prefetch.getCache().stats.getPrefetchAccuracy();
+        FetchFuture<?> prefetch = batch.first().prefetch;
+        //double accuracy = prefetch.getCache().stats.getPrefetchAccuracy(prefetch);
+        double accuracy = prefetch.getCache().stats.getHardcodedPrefetchAccuracy(prefetch);
         //Log.d(TAG, String.format("Computed prefetch accuracy: %f", accuracy));
         return (accuracy * benefit);
     }
