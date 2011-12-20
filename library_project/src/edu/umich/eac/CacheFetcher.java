@@ -1,7 +1,7 @@
 package edu.umich.eac;
 
 public abstract class CacheFetcher<V> {
-    private static final int DEFAULT_PREFETCH_CLASS = 0;
+    static final int DEFAULT_PREFETCH_CLASS = -1;
 
     /** Similar to Callable<V>, but takes the arguments
      *    that will change depending on e.g. whether we're 

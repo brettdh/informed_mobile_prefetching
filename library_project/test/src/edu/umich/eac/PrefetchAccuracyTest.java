@@ -47,24 +47,22 @@ public class PrefetchAccuracyTest extends InstrumentationTestCase {
     }
     
     public void testAccuracyChangesThroughCacheStats() throws InterruptedException, ExecutionException {
-        assertEquals(0.0, cache.stats.getPrefetchAccuracy(), 0.001);
-        
         FakeFetcher fetcher = new FakeFetcher("The string.");
-        Future<String> future = cache.prefetch(fetcher);
-        assertEquals(0.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        FetchFuture<?> future = (FetchFuture<?>) cache.prefetch(fetcher);
+        assertEquals(0.0, cache.stats.getPrefetchAccuracy(future), 0.001);
         
         future.get();
-        assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        assertEquals(1.0, cache.stats.getPrefetchAccuracy(future), 0.001);
         
-        Future<String> future2 = cache.prefetch(fetcher);
-        assertEquals(0.5, cache.stats.getPrefetchAccuracy(), 0.001);
-        Future<String> future3 = cache.prefetch(fetcher);
-        assertEquals(1.0/3.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        FetchFuture<?> future2 = (FetchFuture<?>) cache.prefetch(fetcher);
+        assertEquals(0.5, cache.stats.getPrefetchAccuracy(future2), 0.001);
+        FetchFuture<?> future3 = (FetchFuture<?>) cache.prefetch(fetcher);
+        assertEquals(1.0/3.0, cache.stats.getPrefetchAccuracy(future3), 0.001);
 
         future3.get();
-        assertEquals(2.0/3.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        assertEquals(2.0/3.0, cache.stats.getPrefetchAccuracy(future3), 0.001);
         future2.get();
-        assertEquals(1.0, cache.stats.getPrefetchAccuracy(), 0.001);
+        assertEquals(1.0, cache.stats.getPrefetchAccuracy(future2), 0.001);
     }
     
     private class FakeHTTPCacheFetcher extends CacheFetcher<Integer> {

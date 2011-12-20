@@ -133,6 +133,7 @@ class PrefetchAccuracy {
         newsreaderPrefetchAccuracyByFeed.put(NewsreaderPrefetchClass.FEED2.ordinal(), 3.0/3.0);
         newsreaderPrefetchAccuracyByFeed.put(NewsreaderPrefetchClass.FEED3.ordinal(), 1.0/2.0);
         newsreaderPrefetchAccuracyByFeed.put(NewsreaderPrefetchClass.FEED4.ordinal(), 2.0/3.0);
+        newsreaderPrefetchAccuracyByFeed.put(CacheFetcher.DEFAULT_PREFETCH_CLASS, 16.0/25.0);
     }
     
     private ArrayList<Integer> prefetchHintHashes;

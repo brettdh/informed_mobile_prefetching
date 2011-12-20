@@ -100,12 +100,12 @@ class CacheStats {
         EnergyAdaptiveCache.logEvent("cancel", fetchFuture.hashCode());
     }
     
-    synchronized double getPrefetchAccuracy() {
-        throw new Error("Called the non-hardcoded getPrefetchAccuracy");
+    synchronized double getPrefetchAccuracy(FetchFuture<?> fetchFuture) {
+        PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
+        return accuracy.getAccuracy();
     }
     
-    synchronized double getPrefetchAccuracy(FetchFuture<?> fetchFuture) {
-        //return prefetchAccuracy.getAccuracy();
+    synchronized double getHardcodedPrefetchAccuracy(FetchFuture<?> fetchFuture) {
         //return prefetchAccuracy.getHardcodedAccuracy(Application.EMAIL);
         PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
         return accuracy.getHardcodedAccuracy(Application.NEWS);
