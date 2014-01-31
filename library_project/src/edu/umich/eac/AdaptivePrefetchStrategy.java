@@ -136,10 +136,20 @@ public class AdaptivePrefetchStrategy extends PrefetchStrategy {
         
         // set from initial values in trace
         HARDCODED_INITIAL_THREEG_STATS = new NetworkStats();
-        HARDCODED_INITIAL_THREEG_STATS.bandwidthDown = 51196;
-        HARDCODED_INITIAL_THREEG_STATS.bandwidthUp = 1497;
-        HARDCODED_INITIAL_THREEG_STATS.rttMillis = 207;
+//        HARDCODED_INITIAL_THREEG_STATS.bandwidthDown = 51196;
+//        HARDCODED_INITIAL_THREEG_STATS.bandwidthUp = 1497;
+//        HARDCODED_INITIAL_THREEG_STATS.rttMillis = 207;
         
+        // walking trace 1
+        HARDCODED_INITIAL_THREEG_STATS.bandwidthDown = 66052; //test
+        HARDCODED_INITIAL_THREEG_STATS.bandwidthUp = 6792;
+        HARDCODED_INITIAL_THREEG_STATS.rttMillis = 143;
+
+        // walking trace 1, reversed
+//        HARDCODED_INITIAL_THREEG_STATS.bandwidthDown = 87620;
+//        HARDCODED_INITIAL_THREEG_STATS.bandwidthUp = 18924;
+//        HARDCODED_INITIAL_THREEG_STATS.rttMillis = 115;
+
         currentNetworkStats = NetworkStats.getAllNetworkStats(context);
         currentNetworkStats.put(ConnectivityManager.TYPE_MOBILE, HARDCODED_INITIAL_THREEG_STATS);
         averageNetworkStats = new AverageNetworkStats();

@@ -15,7 +15,10 @@ import edu.umich.eac.ConservativePrefetchStrategy;
 
 abstract class PrefetchStrategy {
     // based on 20 minutes of the Ypsilanti driving trace.
-    private static final double HARDCODED_HISTORICAL_WIFI_AVAILABILITY = 0.506568;
+    //private static final double HARDCODED_HISTORICAL_WIFI_AVAILABILITY = 0.506568;
+    
+    // based on the first A2 walking trace, SoE -> Broken Egg.
+    private static final double HARDCODED_HISTORICAL_WIFI_AVAILABILITY = 0.177907;
 
     protected WifiTracker wifiTracker;
     public abstract void onPrefetchEnqueued(FetchFuture<?> prefetch);

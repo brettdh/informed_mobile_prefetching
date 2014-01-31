@@ -106,9 +106,9 @@ class CacheStats {
     }
     
     synchronized double getHardcodedPrefetchAccuracy(FetchFuture<?> fetchFuture) {
-        //return prefetchAccuracy.getHardcodedAccuracy(Application.EMAIL);
         PrefetchAccuracy accuracy = getAccuracyByClass(fetchFuture);
-        return accuracy.getHardcodedAccuracy(Application.NEWS);
+        return accuracy.getHardcodedAccuracy(Application.EMAIL);
+//        return accuracy.getHardcodedAccuracy(Application.NEWS);
     }
     
     /**
