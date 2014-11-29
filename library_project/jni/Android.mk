@@ -17,7 +17,7 @@ LOCAL_SRC_FILES := $(addprefix $(CPP_WRAPPER_RELPATH)/src/, \
 	EnergyAdaptiveCache.cpp \
 	Future.cpp) \
 	$(addprefix $(INTNW_RELPATH)/, libcmm_external_ipc.cpp debug.cpp)
-LOCAL_CFLAGS := -DANDROID -DNDK_BUILD -g -ggdb -Wall -Werror
+LOCAL_CFLAGS := -DANDROID -DNDK_BUILD -DBUILDING_EXTERNAL -g -ggdb -Wall -Werror
 LOCAL_LDLIBS := -llog
 
 include $(BUILD_SHARED_LIBRARY)

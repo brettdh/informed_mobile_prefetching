@@ -8,7 +8,6 @@
 #include "jclasses.h"
 
 #include <exception>
-#include <exception_defines.h>
 #include <cxxabi.h>
 #include <typeinfo>
 

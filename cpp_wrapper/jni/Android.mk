@@ -8,7 +8,7 @@ LOCAL_MODULE := libeac_native_static
 LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/../include \
 	$(LOCAL_PATH)/$(INTNW_ROOT)
-LOCAL_CFLAGS := -DANDROID -DNDK_BUILD -g -ggdb -Wall -Werror
+LOCAL_CFLAGS := -DANDROID -DNDK_BUILD -DBUILDING_EXTERNAL -g -ggdb -Wall -Werror
 LOCAL_SRC_FILES := $(addprefix ../, \
 	src/EnergyAdaptiveCache.cpp \
 	src/JNICacheFetcher_wrap.cpp \
